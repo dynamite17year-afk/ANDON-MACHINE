@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANDON SYSTEM</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Noto+Sans+Thai:wght@400;600;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:#03060d;font-family:'Noto Sans Thai',sans-serif;color:#b8d8ee;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;
+  background-image:
+    radial-gradient(ellipse at 20% 20%,rgba(0,180,255,.07) 0,transparent 50%),
+    radial-gradient(ellipse at 80% 80%,rgba(170,100,255,.05) 0,transparent 50%),
+    radial-gradient(ellipse at 50% 50%,rgba(0,230,120,.03) 0,transparent 60%);
+}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:3.2rem;letter-spacing:12px;
+  background:linear-gradient(90deg,#00b4ff,#00e5cc,#00e676);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:4px;text-align:center;text-shadow:none}
+.sub{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#5a8aaa;
+  letter-spacing:4px;text-align:center;margin-bottom:32px}
+
+/* STATUS BAR */
+.status-bar{
+  display:flex;align-items:center;gap:8px;margin-bottom:28px;
+  font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:2px;
+  background:rgba(0,0,0,.3);border:1px solid #1a2e40;border-radius:20px;
+  padding:5px 14px;
+}
+.dot{width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0;transition:all .3s}
+.dot.on{background:#00e676;box-shadow:0 0 7px #00e676;animation:blink 2s infinite}
+.dot.off{background:#ff1744;box-shadow:0 0 7px #ff1744}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+#connTxt{color:#5a8aaa}
+
+/* MAIN CARDS */
+.cards{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;width:100%;max-width:520px;margin-bottom:24px}
+.card{
+  flex:1;min-width:200px;border-radius:14px;padding:24px 18px;text-align:center;
+  text-decoration:none;transition:all .2s;cursor:pointer;display:block;position:relative;overflow:hidden;
+}
+.card:active{transform:scale(.96)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0;transition:opacity .2s;opacity:.7}
+.card-w::before{background:linear-gradient(90deg,#00b4ff,#00e5cc)}
+.card-c::before{background:linear-gradient(90deg,#ff1744,#ff6600)}
+.card-w{background:linear-gradient(145deg,#081420,#050c18);border:1px solid #142a40}
+.card-w:hover{border-color:rgba(0,180,255,.5);box-shadow:0 8px 30px rgba(0,180,255,.12);transform:translateY(-2px)}
+.card-c{background:linear-gradient(145deg,#140810,#080408);border:1px solid #2a1020}
+.card-c:hover{border-color:rgba(255,23,68,.45);box-shadow:0 8px 30px rgba(255,23,68,.1);transform:translateY(-2px)}
+.card-ico{font-size:2.6rem;margin-bottom:12px}
+.card-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;margin-bottom:6px}
+.card-w .card-title{color:#00c8ff}
+.card-c .card-title{color:#ff4466}
+.card-desc{font-size:.84rem;color:#7aaabb;line-height:1.7;margin-bottom:14px}
+.card-tag{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:2px;
+  padding:4px 12px;border-radius:20px;display:inline-block}
+.card-w .card-tag{background:rgba(0,180,255,.12);color:#00b4ff;border:1px solid rgba(0,180,255,.25)}
+.card-c .card-tag{background:rgba(255,23,68,.1);color:#ff4466;border:1px solid rgba(255,23,68,.2)}
+
+/* LINE STATUS */
+.line-status{width:100%;max-width:520px;margin-bottom:24px}
+.ls-title{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#5a8aaa;
+  letter-spacing:3px;margin-bottom:8px;text-align:center}
+.ls-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ls-card{border-radius:10px;padding:12px 14px;position:relative;overflow:hidden;transition:all .3s}
+.ls-card.l1{background:linear-gradient(135deg,#05101e,#030a14);border:1px solid rgba(0,180,255,.2)}
+.ls-card.l2{background:linear-gradient(135deg,#0e0518,#07030f);border:1px solid rgba(170,100,255,.2)}
+.ls-card.l1::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#00b4ff;border-radius:0 2px 2px 0}
+.ls-card.l2::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#aa66ff;border-radius:0 2px 2px 0}
+.ls-card.alert-call{border-color:rgba(255,214,0,.4);animation:card-pulse-y .8s ease-in-out infinite alternate}
+.ls-card.alert-breakdown{border-color:rgba(255,23,68,.5);animation:card-pulse-r .8s ease-in-out infinite alternate}
+.ls-card.alert-ack{border-color:rgba(0,180,255,.4)}
+@keyframes card-pulse-y{from{box-shadow:none}to{box-shadow:0 0 16px rgba(255,214,0,.2)}}
+@keyframes card-pulse-r{from{box-shadow:none}to{box-shadow:0 0 20px rgba(255,23,68,.25)}}
+.ls-linetag{font-family:'Bebas Neue',sans-serif;font-size:.68rem;letter-spacing:2px;
+  padding:1px 8px;border-radius:4px;display:inline-block;margin-bottom:4px}
+.l1 .ls-linetag{background:rgba(0,180,255,.1);color:#00b4ff;border:1px solid rgba(0,180,255,.25)}
+.l2 .ls-linetag{background:rgba(170,100,255,.1);color:#bb88ff;border:1px solid rgba(170,100,255,.25)}
+.ls-name{font-size:.78rem;font-weight:600;color:#8abbd0;margin-bottom:4px}
+.l2 .ls-name{color:#aa88dd}
+.ls-status{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:3px;color:#00e676;transition:color .3s}
+.ls-card.alert-call .ls-status{color:#ffd600}
+.ls-card.alert-breakdown .ls-status{color:#ff1744}
+.ls-card.alert-ack .ls-status{color:#00b4ff}
+.ls-ico{float:right;font-size:1.2rem;margin-top:-2px}
+
+/* NOTE */
+.note{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#4a7090;
+  text-align:center;letter-spacing:1px;line-height:2.0}
+.note a{color:#5a8aaa;text-decoration:none}
+</style>
+</head>
+<body>
+
+<div class="logo">ANDON</div>
+<div class="sub">PRODUCTION MONITORING SYSTEM</div>
+
+<!-- CONNECTION STATUS -->
+<div class="status-bar">
+  <div class="dot" id="connDot"></div>
+  <span id="connTxt">CONNECTING TO FIREBASE...</span>
+</div>
+
+<!-- LIVE LINE STATUS -->
+<div class="line-status">
+  <div class="ls-title">▸ สถานะไลน์การผลิต · LIVE</div>
+  <div class="ls-grid">
+    <div class="ls-card l1" id="lsCard1">
+      <div class="ls-ico" id="lsIco1">✅</div>
+      <div class="ls-linetag">LINE 1</div>
+      <div class="ls-name">Base Coat / Clear Coat</div>
+      <div class="ls-status" id="lsStat1">NORMAL</div>
+    </div>
+    <div class="ls-card l2" id="lsCard2">
+      <div class="ls-ico" id="lsIco2">✅</div>
+      <div class="ls-linetag">LINE 2</div>
+      <div class="ls-name">New Primer</div>
+      <div class="ls-status" id="lsStat2">NORMAL</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN MENU -->
+<div class="cards">
+  <a class="card card-w" href="andon-worker.html">
+    <div class="card-ico">📱</div>
+    <div class="card-title">หน้างาน</div>
+    <div class="card-desc">พนักงานกดปุ่มแจ้งปัญหา<br>เรียกหัวหน้า / เครื่องเสีย<br>เลือกไลน์ผลิตได้</div>
+    <div class="card-tag">WORKER PANEL</div>
+  </a>
+  <a class="card card-c" href="andon-control-room.html">
+    <div class="card-ico">🖥</div>
+    <div class="card-title">ห้องควบคุม</div>
+    <div class="card-desc">แสดงสถานะ Real-time<br>รับสัญญาณจากหน้างาน<br>บันทึกเวลาหยุดซ่อม</div>
+    <div class="card-tag">CONTROL ROOM</div>
+  </a>
+</div>
+
+<div class="note">
+  เปิดหน้างานบนมือถือที่จุดผลิต &nbsp;·&nbsp; เปิดห้องควบคุมบนจอที่ห้องควบคุม<br>
+  ทั้งคู่เชื่อมต่อผ่าน Firebase Real-time &nbsp;·&nbsp; 2 ไลน์ผลิต
+</div>
+
+<script>
+var CFG = {
+  apiKey:"AIzaSyCsuwwUKEw01sXhVHt-1WcF94F5kNMiCOI",
+  authDomain:"andon-system-7768d.firebaseapp.com",
+  databaseURL:"https://andon-system-7768d-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"andon-system-7768d",
+  storageBucket:"andon-system-7768d.firebasestorage.app",
+  messagingSenderId:"35986723687",
+  appId:"1:35986723687:web:34c48c4b2df30e8068d5c2"
+};
+
+var LABELS = {
+  normal:       {icon:"✅", text:"NORMAL",       cls:""},
+  call:         {icon:"📞", text:"เรียกหัวหน้า", cls:"alert-call"},
+  breakdown:    {icon:"🚨", text:"เครื่องเสีย",  cls:"alert-breakdown"},
+  acknowledged: {icon:"🔵", text:"รับทราบแล้ว", cls:"alert-ack"}
+};
+
+function updateCard(n, d){
+  var t = LABELS[d.type] || LABELS.normal;
+  var base = n===1 ? "ls-card l1" : "ls-card l2";
+  document.getElementById("lsCard"+n).className = base + (t.cls?" "+t.cls:"");
+  document.getElementById("lsIco"+n).textContent = t.icon;
+  document.getElementById("lsStat"+n).textContent = t.text;
+}
+
+window.addEventListener("DOMContentLoaded", function(){
+  try {
+    firebase.initializeApp(CFG);
+    var db = firebase.database();
+
+    db.ref("andon/station01").on("value", function(snap){
+      setConn(true);
+      var d = snap.val();
+      if(d && d.type) updateCard(1, d);
+    }, function(){ setConn(false); });
+
+    db.ref("andon/station02").on("value", function(snap){
+      setConn(true);
+      var d = snap.val();
+      if(d && d.type) updateCard(2, d);
+    });
+
+    setConn(true);
+  } catch(e){
+    setConn(false);
+  }
+});
+
+function setConn(ok){
+  document.getElementById("connDot").className = "dot " + (ok?"on":"off");
+  document.getElementById("connTxt").textContent = ok
+    ? "ONLINE · FIREBASE CONNECTED"
+    : "OFFLINE · RECONNECTING...";
+  document.getElementById("connTxt").style.color = ok ? "#00e676" : "#ff1744";
+}
+</script>
+</body>
+</html>

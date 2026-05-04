@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ANDON · หน้างาน</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Noto+Sans+Thai:wght@400;600;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans Thai',sans-serif;background:#05080f;color:#cce0f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding-bottom:30px}
+.hdr{width:100%;background:#040810;border-bottom:2px solid #142030;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.hdr-title{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:6px;color:#00b4ff;text-shadow:0 0 20px rgba(0,180,255,.5)}
+.hdr-sub{font-family:'Share Tech Mono',monospace;font-size:.56rem;color:#304a60;letter-spacing:3px}
+.badge{font-family:'Share Tech Mono',monospace;font-size:.78rem;background:rgba(0,180,255,.08);border:1px solid rgba(0,180,255,.25);color:#00b4ff;border-radius:6px;padding:6px 12px;letter-spacing:2px;text-align:right}
+.badge-sub{font-size:.56rem;color:#304a60}
+.line-sel{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.line-btn{border:2px solid #142030;border-radius:10px;padding:12px 10px;background:#0a0f1a;cursor:pointer;text-align:center;transition:all .2s;position:relative;overflow:hidden}
+/* LINE 1 สีฟ้า */
+.line-btn.l1{border-top:3px solid rgba(0,180,255,.25)}
+.line-btn.l1.active{border-color:#00b4ff;background:rgba(0,180,255,.08);box-shadow:0 0 16px rgba(0,180,255,.2)}
+/* LINE 2 สีม่วง */
+.line-btn.l2{border-top:3px solid rgba(170,100,255,.25)}
+.line-btn.l2.active{border-color:#aa66ff;background:rgba(170,100,255,.08);box-shadow:0 0 16px rgba(170,100,255,.2)}
+.line-btn:active{transform:scale(.96)}
+.lb-tag{font-family:'Bebas Neue',sans-serif;font-size:.72rem;letter-spacing:2px;padding:1px 8px;border-radius:4px;display:inline-block;margin-bottom:5px}
+.line-btn.l1 .lb-tag{background:rgba(0,180,255,.12);color:#00b4ff;border:1px solid rgba(0,180,255,.3)}
+.line-btn.l2 .lb-tag{background:rgba(170,100,255,.12);color:#bb88ff;border:1px solid rgba(170,100,255,.3)}
+.lb-name{font-family:'Noto Sans Thai',sans-serif;font-size:.82rem;font-weight:600;margin-top:2px}
+.line-btn.l1 .lb-name{color:#7aaccf}
+.line-btn.l1.active .lb-name{color:#00d4ff}
+.line-btn.l2 .lb-name{color:#9966cc}
+.line-btn.l2.active .lb-name{color:#cc99ff}
+.wrap{width:100%;max-width:420px;padding:0 16px}
+.conn-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:2px}
+.dot{width:9px;height:9px;border-radius:50%;background:#333;transition:all .3s;flex-shrink:0}
+.dot.on{background:#00e676;box-shadow:0 0 8px #00e676;animation:blink 2s infinite}
+.dot.off{background:#ff1744;box-shadow:0 0 8px #ff1744}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.sbar{display:flex;align-items:center;gap:10px;background:#0a0f1a;border:1px solid #142030;border-radius:10px;padding:13px 16px;margin-bottom:18px;position:relative;overflow:hidden;transition:all .3s}
+.sbar::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:#00e676;border-radius:0 3px 3px 0;transition:background .3s}
+.sbar.call::before{background:#ffd600}
+.sbar.breakdown::before{background:#ff1744}
+.sbar.acknowledged::before{background:#00b4ff}
+.sb-ico{font-size:1.6rem;min-width:36px;text-align:center}
+.sb-lbl{font-family:'Share Tech Mono',monospace;font-size:.54rem;color:#304a60;letter-spacing:2px}
+.sb-txt{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:4px;color:#00e676;transition:color .3s}
+.sbar.call .sb-txt{color:#ffd600}
+.sbar.breakdown .sb-txt{color:#ff1744}
+.sbar.acknowledged .sb-txt{color:#00b4ff}
+.ack-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  background:rgba(0,180,255,.12);border:1px solid rgba(0,180,255,.35);
+  color:#00b4ff;border-radius:20px;padding:3px 10px;
+  font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:2px;
+  margin-top:4px;animation:ack-pulse 2s infinite;
+}
+@keyframes ack-pulse{0%,100%{box-shadow:0 0 0 rgba(0,180,255,0)}50%{box-shadow:0 0 10px rgba(0,180,255,.3)}}
+.sb-time{font-family:'Share Tech Mono',monospace;font-size:.88rem;color:#304a60}
+.sec{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#304a60;letter-spacing:3px;margin-bottom:10px}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.btn-solo{grid-template-columns:1fr}
+.abtn{border:none;border-radius:12px;padding:20px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:transform .12s,box-shadow .12s;user-select:none;min-height:108px}
+.abtn:active{transform:scale(.92)}
+.btn-ico{font-size:2rem;line-height:1}
+.btn-lbl{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px}
+.btn-sub{font-family:'Share Tech Mono',monospace;font-size:.5rem;letter-spacing:2px;opacity:.65}
+.bc{background:linear-gradient(145deg,#3a2000,#1c0e00);border:1px solid #6a3800;color:#ffd600;box-shadow:0 6px 20px rgba(255,180,0,.15)}
+.bc:active{background:linear-gradient(145deg,#4a2800,#2a1400)}
+.bb{background:linear-gradient(145deg,#2e0010,#140006);border:1px solid #5a0018;color:#ff1744;box-shadow:0 6px 20px rgba(255,20,60,.15)}
+.bb:active{background:linear-gradient(145deg,#3e0018,#200008)}
+.br{background:linear-gradient(145deg,#002a12,#001408);border:1px solid #004820;color:#00e676;box-shadow:0 6px 20px rgba(0,220,100,.1);min-height:72px!important}
+.br:active{background:linear-gradient(145deg,#003a18,#001e0a)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.show{opacity:1;pointer-events:all}
+.cf-box{background:#0a0f1a;border:1px solid #142030;border-radius:16px;padding:28px 22px;width:88%;max-width:340px;text-align:center;transform:scale(.9);transition:transform .2s}
+.overlay.show .cf-box{transform:scale(1)}
+.cf-ico{font-size:3.2rem;margin-bottom:12px}
+.cf-title{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:4px;margin-bottom:8px;color:#cce0f0}
+.cf-desc{font-size:.86rem;color:#4a6a80;margin-bottom:22px;line-height:1.7;white-space:pre-line}
+.cf-btns{display:flex;gap:10px}
+.byes{flex:1;padding:14px;border:none;border-radius:8px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;background:#0a2010;color:#00e676;border:1px solid #1a4a20;transition:all .12s}
+.byes:active{transform:scale(.95)}
+.bno{flex:1;padding:14px;border:none;border-radius:8px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;background:#141414;color:#4a6a80;border:1px solid #1e2a30;transition:all .12s}
+.bno:active{transform:scale(.95)}
+.log-wrap{background:#0a0f1a;border:1px solid #142030;border-radius:10px;padding:12px;margin-top:4px}
+.log-hdr{font-family:'Share Tech Mono',monospace;font-size:.56rem;color:#304a60;letter-spacing:3px;margin-bottom:7px}
+.log-box{background:#03060c;border:1px solid #0d1828;border-radius:6px;padding:8px 10px;height:88px;overflow-y:auto;font-family:'Share Tech Mono',monospace;font-size:.67rem}
+.log-box::-webkit-scrollbar{width:3px}.log-box::-webkit-scrollbar-thumb{background:#142030;border-radius:2px}
+.le{display:flex;gap:8px;margin-bottom:3px}
+.le .ts{color:#1e3448;white-space:nowrap}
+.le.g .m{color:#00e676}.le.y .m{color:#ffd600}.le.r .m{color:#ff1744}.le.s .m{color:#2a4a6a}.le.b .m{color:#00b4ff}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="hdr-title">ANDON</div>
+    <div class="hdr-sub">WORKER PANEL · หน้างาน</div>
+  </div>
+  <div class="badge">STN-01<div class="badge-sub">ASSEMBLY LINE A</div></div>
+</div>
+
+<div class="wrap">
+  <div class="sec" style="margin-bottom:8px">▸ เลือกไลน์การผลิต</div>
+  <div class="line-sel">
+    <button class="line-btn l1 active" id="lbtn1" onclick="selectLine(1)">
+      <div class="lb-tag">LINE 1</div>
+      <div class="lb-name">Base Coat<br>/ Clear Coat</div>
+    </button>
+    <button class="line-btn l2" id="lbtn2" onclick="selectLine(2)">
+      <div class="lb-tag">LINE 2</div>
+      <div class="lb-name">New Primer</div>
+    </button>
+  </div>
+
+  <div class="conn-row">
+    <div class="dot" id="dot"></div>
+    <span id="ctxt" style="color:#304a60">CONNECTING...</span>
+  </div>
+
+  <div class="sbar" id="sbar">
+    <div class="sb-ico" id="sico">✅</div>
+    <div style="flex:1">
+      <div class="sb-lbl">สถานะปัจจุบัน</div>
+      <div class="sb-txt" id="stxt">NORMAL</div>
+      <div class="ack-badge" id="ackBadge" style="display:none">🔵 ผู้ซ่อมรับทราบแล้ว</div>
+    </div>
+    <div class="sb-time" id="stime">00:00</div>
+  </div>
+
+  <div class="sec">▸ แจ้งปัญหา</div>
+  <div class="btn-grid">
+    <button class="abtn bc" onclick="ask('call')">
+      <div class="btn-ico">📞</div>
+      <div class="btn-lbl">เรียกหัวหน้า</div>
+      <div class="btn-sub">CALL SUPERVISOR</div>
+    </button>
+    <button class="abtn bb" onclick="ask('breakdown')">
+      <div class="btn-ico">⚠️</div>
+      <div class="btn-lbl">เครื่องเสีย</div>
+      <div class="btn-sub">MACHINE BREAKDOWN</div>
+    </button>
+  </div>
+
+  <div class="sec">▸ ยกเลิกแจ้งเตือน</div>
+  <div class="btn-grid btn-solo">
+    <button class="abtn br" onclick="ask('reset')">
+      <div class="btn-ico">♻️</div>
+      <div class="btn-lbl">RESET · แก้ไขแล้ว</div>
+      <div class="btn-sub">CLEAR ALL ALERTS</div>
+    </button>
+  </div>
+
+  <div class="log-wrap">
+    <div class="log-hdr">▸ ประวัติการแจ้ง</div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="cf-box">
+    <div class="cf-ico"   id="cfIco"></div>
+    <div class="cf-title" id="cfTitle"></div>
+    <div class="cf-desc"  id="cfDesc"></div>
+    <div class="cf-btns">
+      <button class="byes" onclick="doSend()">✔ ยืนยัน</button>
+      <button class="bno"  onclick="closeOv()">✕ ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var CFG = {
+  apiKey:"AIzaSyCsuwwUKEw01sXhVHt-1WcF94F5kNMiCOI",
+  authDomain:"andon-system-7768d.firebaseapp.com",
+  databaseURL:"https://andon-system-7768d-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"andon-system-7768d",
+  storageBucket:"andon-system-7768d.firebasestorage.app",
+  messagingSenderId:"35986723687",
+  appId:"1:35986723687:web:34c48c4b2df30e8068d5c2"
+};
+
+var TYPES = {
+  normal:       {icon:'✅',label:'NORMAL',          cls:'',             col:'g'},
+  call:         {icon:'📞',label:'เรียกหัวหน้า',    cls:'call',         col:'y'},
+  breakdown:    {icon:'⚠️',label:'เครื่องเสีย',     cls:'breakdown',    col:'r'},
+  acknowledged: {icon:'🔵',label:'รับทราบแล้ว',    cls:'acknowledged', col:'b'}
+};
+
+var CF = {
+  call:      {icon:'📞',title:'เรียกหัวหน้า',   desc:'ส่งสัญญาณแจ้งหัวหน้างาน\nห้องควบคุมจะรับแจ้งทันที'},
+  breakdown: {icon:'⚠️',title:'แจ้งเครื่องเสีย', desc:'ส่งสัญญาณฉุกเฉิน\nเครื่องจักรขัดข้อง'},
+  reset:     {icon:'♻️',title:'RESET ระบบ',     desc:'แก้ไขปัญหาแล้ว\nรีเซ็ตกลับสู่ปกติ'}
+};
+
+var curType='normal', stateTs=Date.now(), pending=null, dbRef=null;
+var activeLine = 1; // 1=Base Coat/Clear Coat, 2=New Primer
+
+// ── INIT ──────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  render();
+  setInterval(render, 1000);
+  log('s','⚙ WORKER PANEL พร้อมใช้งาน');
+
+  try {
+    firebase.initializeApp(CFG);
+    dbRef = firebase.database().ref('andon/station01'); // เริ่มต้น LINE 1
+    dbRef.on('value', function(snap){
+      setOnline(true);
+      var d = snap.val();
+      if(d && d.type){
+        curType  = d.type;
+        stateTs  = d.timestamp || Date.now();
+        render();
+      }
+    }, function(e){
+      setOnline(false);
+      log('s','⚡ '+e.message);
+    });
+    setOnline(true);
+  } catch(e){
+    setOnline(false);
+    log('s','⚡ Firebase ไม่พร้อม: '+e.message);
+  }
+});
+
+// ── LINE SELECTOR ─────────────────────────────
+function selectLine(n){
+  activeLine = n;
+  document.getElementById('lbtn1').className='line-btn l1'+(n===1?' active':'');
+  document.getElementById('lbtn2').className='line-btn l2'+(n===2?' active':'');
+  var stationRef = n===1?'andon/station01':'andon/station02';
+  var lineName   = n===1?'Base Coat / Clear Coat':'New Primer';
+  // เปลี่ยน db ref
+  if(dbRef) dbRef.off();
+  dbRef = firebase.database().ref(stationRef);
+  dbRef.on('value', function(snap){
+    setOnline(true);
+    var d = snap.val();
+    if(d && d.type){ curType=d.type; stateTs=d.timestamp||Date.now(); render(); }
+  }, function(e){ setOnline(false); });
+  log('s','🔄 เปลี่ยนเป็น LINE '+n+' — '+lineName);
+}
+
+// ── CONFIRM ───────────────────────────────────
+function ask(type){
+  pending = type;
+  var c = CF[type]||{};
+  document.getElementById('cfIco').textContent   = c.icon||'❓';
+  document.getElementById('cfTitle').textContent = c.title||type;
+  document.getElementById('cfDesc').textContent  = c.desc||'';
+  document.getElementById('overlay').classList.add('show');
+}
+
+function closeOv(){
+  document.getElementById('overlay').classList.remove('show');
+}
+
+document.getElementById('overlay').addEventListener('click', function(e){
+  if(e.target===this) closeOv();
+});
+
+function doSend(){
+  closeOv();
+  if(!pending) return;
+  var realType = (pending==='reset') ? 'normal' : pending;
+  var lineName = activeLine===1?'Base Coat / Clear Coat':'New Primer';
+  var pl = {type:realType, station:'LINE-'+activeLine, name:lineName, timestamp:Date.now()};
+
+  curType  = realType;
+  stateTs  = pl.timestamp;
+  render();
+
+  if(dbRef){
+    dbRef.set(pl).then(function(){
+      log(TYPES[realType].col,'📤 ส่งแล้ว: '+(realType==='normal'?'RESET':''+TYPES[realType].label));
+    }).catch(function(e){ log('s','⚡ ส่งไม่ได้: '+e.message); });
+  } else {
+    log('s','⚡ ไม่มี Firebase — กรุณาตรวจสอบ internet');
+  }
+
+  if(navigator.vibrate) navigator.vibrate(realType==='normal'?50:[200,80,200]);
+  pending = null;
+}
+
+// ── RENDER ────────────────────────────────────
+function render(){
+  var t = TYPES[curType]||TYPES.normal;
+  document.getElementById('sbar').className   = 'sbar '+t.cls;
+  document.getElementById('sico').textContent = t.icon;
+  document.getElementById('stxt').textContent = t.label;
+
+  // แสดง badge รับทราบ
+  var badge = document.getElementById('ackBadge');
+  badge.style.display = (curType==='acknowledged') ? 'inline-flex' : 'none';
+
+  var s=Math.floor((Date.now()-stateTs)/1000);
+  document.getElementById('stime').textContent =
+    String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+
+function setOnline(ok){
+  var d=document.getElementById('dot'), t=document.getElementById('ctxt');
+  d.className='dot '+(ok?'on':'off');
+  t.textContent=ok?'ONLINE · FIREBASE CONNECTED':'OFFLINE · RECONNECTING...';
+  t.style.color=ok?'#00e676':'#ff1744';
+}
+
+function log(col,msg){
+  var b=document.getElementById('logBox');
+  var now=new Date().toLocaleTimeString('th-TH',{hour12:false});
+  var el=document.createElement('div'); el.className='le '+col;
+  el.innerHTML='<span class="ts">['+now+']</span><span class="m">'+msg+'</span>';
+  b.appendChild(el); b.scrollTop=b.scrollHeight;
+  if(b.children.length>80) b.removeChild(b.firstChild);
+}
+</script>
+</body>
+</html>

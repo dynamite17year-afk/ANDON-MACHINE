@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANDON · ห้องควบคุม</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Noto+Sans+Thai:wght@400;600;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans Thai',sans-serif;background:#03060d;color:#ddeeff;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding-bottom:30px}
+
+/* HEADER */
+.hdr{width:100%;background:#020408;border-bottom:2px solid #0e1c2e;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;position:relative}
+.hdr::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#ff1744 20%,#ffd600 50%,#00e676 80%,transparent);opacity:.6}
+.hdr-title{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:5px;background:linear-gradient(90deg,#ff4444,#ffaa00,#44ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hdr-sub{font-family:'Share Tech Mono',monospace;font-size:.54rem;color:#1e3448;letter-spacing:3px}
+.hdr-right{text-align:right}
+.hdr-clk{font-family:'Share Tech Mono',monospace;font-size:1rem;color:#ddeeff;letter-spacing:2px}
+.hdr-date{font-family:'Share Tech Mono',monospace;font-size:.52rem;color:#1e3448}
+.conn-pill{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.3);border:1px solid #0e1c2e;border-radius:20px;padding:3px 10px;font-family:'Share Tech Mono',monospace;font-size:.56rem;color:#1e3448;margin-bottom:4px;justify-content:flex-end}
+.dot{width:7px;height:7px;border-radius:50%;background:#333;transition:all .3s;flex-shrink:0}
+.dot.on{background:#00e676;box-shadow:0 0 6px #00e676;animation:blink 2s infinite}
+.dot.off{background:#ff1744;box-shadow:0 0 6px #ff1744}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+.wrap{width:100%;max-width:520px;padding:0 16px}
+
+/* ALERT BANNER */
+.alert-banner{border-radius:10px;padding:16px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px;background:#060c18;border:1px solid #0e1c2e;transition:all .3s;position:relative;overflow:hidden}
+.alert-banner.call{border-color:rgba(255,214,0,.5);background:linear-gradient(135deg,#1a1400,#060400);box-shadow:0 0 20px rgba(255,214,0,.08)}
+.alert-banner.breakdown{border-color:rgba(255,23,68,.5);background:linear-gradient(135deg,#180008,#060002);animation:puls-r 1s ease-in-out infinite alternate}
+.alert-banner.acknowledged{border-color:rgba(0,180,255,.5);background:linear-gradient(135deg,#001828,#000810);box-shadow:0 0 20px rgba(0,180,255,.1)}
+@keyframes puls-r{from{box-shadow:none}to{box-shadow:0 0 30px rgba(255,23,68,.2)}}
+.ab-ico{font-size:2.4rem;min-width:44px;text-align:center}
+.ab-type{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:5px;color:#00e676;transition:color .3s;line-height:1}
+.alert-banner.call .ab-type{color:#ffd600}
+.alert-banner.breakdown .ab-type{color:#ff1744}
+.alert-banner.acknowledged .ab-type{color:#00b4ff}
+.ab-sub{font-size:.8rem;color:#304a60;margin-top:3px}
+.ab-el{font-family:'Share Tech Mono',monospace;font-size:1.4rem;color:#304a60;margin-left:auto;transition:color .3s}
+.alert-banner.call .ab-el{color:#ffd600}
+.alert-banner.breakdown .ab-el{color:#ff1744}
+.alert-banner.acknowledged .ab-el{color:#00b4ff}
+.ab-el-lbl{font-family:'Share Tech Mono',monospace;font-size:.5rem;color:#1e3448;text-align:right;letter-spacing:1px}
+
+/* LAMPS */
+.lamps{display:flex;gap:10px;margin-bottom:14px}
+.lamp{flex:1;background:#060c18;border:1px solid #0e1c2e;border-radius:8px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all .2s}
+.lamp-orb{width:44px;height:44px;border-radius:50%;background:#080e18;border:2px solid #0e1c2e;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .2s}
+.lamp-lbl{font-family:'Share Tech Mono',monospace;font-size:.5rem;color:#1e3448;text-align:center;line-height:1.4}
+.lamp.lit-G{border-color:rgba(0,230,118,.5);box-shadow:0 0 16px rgba(0,230,118,.12)}
+.lamp.lit-G .lamp-orb{background:radial-gradient(circle at 35% 30%,#77ffaa,#00e676);border-color:#00e676;box-shadow:0 0 14px #00e676}
+.lamp.lit-G .lamp-lbl{color:#00e676}
+.lamp.lit-Y{border-color:rgba(255,214,0,.5);box-shadow:0 0 16px rgba(255,214,0,.12);animation:flash .5s step-end infinite}
+.lamp.lit-Y .lamp-orb{background:radial-gradient(circle at 35% 30%,#ffe066,#ffd600);border-color:#ffd600;box-shadow:0 0 14px #ffd600}
+.lamp.lit-Y .lamp-lbl{color:#ffd600}
+.lamp.lit-R{border-color:rgba(255,23,68,.5);box-shadow:0 0 16px rgba(255,23,68,.15);animation:flash .5s step-end infinite}
+.lamp.lit-R .lamp-orb{background:radial-gradient(circle at 35% 30%,#ff8899,#ff1744);border-color:#ff1744;box-shadow:0 0 14px #ff1744}
+.lamp.lit-R .lamp-lbl{color:#ff1744}
+@keyframes flash{0%,49%{opacity:1}50%,100%{opacity:.5}}
+
+/* STATUS BAR (ctrl) */
+.ctrl-bar{display:flex;align-items:center;gap:10px;background:#060c18;border:1px solid #0e1c2e;border-radius:8px;padding:10px 14px;margin-bottom:12px;transition:all .3s;position:relative;overflow:hidden}
+.ctrl-bar::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#00e676;transition:background .3s;border-radius:0 2px 2px 0}
+.ctrl-bar.call::before{background:#ffd600}
+.ctrl-bar.breakdown::before{background:#ff1744}
+.ctrl-bar.acknowledged::before{background:#00b4ff}
+.cb-ico{font-size:1.3rem;min-width:28px;text-align:center}
+.cb-lbl{font-family:'Share Tech Mono',monospace;font-size:.54rem;color:#6a9ab8;letter-spacing:2px}
+.cb-txt{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;color:#00e676;transition:color .3s}
+.ctrl-bar.call .cb-txt{color:#ffd600}
+.ctrl-bar.breakdown .cb-txt{color:#ff1744}
+.ctrl-bar.acknowledged .cb-txt{color:#00b4ff}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:#060c18;border:1px solid #0e1c2e;border-radius:8px;padding:9px 10px;text-align:center}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:2px;line-height:1}
+.stat-lbl{font-family:'Share Tech Mono',monospace;font-size:.5rem;color:#5a8aaa;letter-spacing:1px;margin-top:2px}
+
+/* LOG */
+.log-panel{background:#060c18;border:1px solid #0e1c2e;border-radius:8px;padding:10px 12px}
+.log-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.log-title{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#00b4ff;letter-spacing:3px}
+.log-clr{font-family:'Share Tech Mono',monospace;font-size:.56rem;background:none;border:1px solid #0e1c2e;border-radius:4px;padding:2px 8px;cursor:pointer;color:#1e3448;transition:all .2s}
+.log-clr:hover{color:#ff1744;border-color:#ff1744}
+.log-clr{color:#5a8aaa;border-color:#1a3048}
+.log-box{background:#03060c;border:1px solid #0a1420;border-radius:5px;padding:8px 10px;height:160px;overflow-y:auto;font-family:'Share Tech Mono',monospace;font-size:.68rem}
+.log-box::-webkit-scrollbar{width:3px}.log-box::-webkit-scrollbar-thumb{background:#0e1c2e;border-radius:2px}
+.le{display:flex;gap:8px;margin-bottom:3px}
+.le .ts{color:#3a6080;white-space:nowrap}
+.le .stn{color:#3a6080;white-space:nowrap}
+.le.g .m{color:#00e676}.le.y .m{color:#ffd600}.le.r .m{color:#ff1744}.le.s .m{color:#2a4a6a}.le.b .m{color:#00b4ff}
+
+/* TIMER SECTION */
+.timer-section{background:#060c18;border:1px solid #0e1c2e;border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.timer-hdr{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#00b4ff;letter-spacing:3px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.timer-hdr-right{font-family:'Share Tech Mono',monospace;font-size:.52rem;color:#5a8aaa;letter-spacing:1px}
+.timer-now{background:#030812;border:1px solid #0e1c2e;border-radius:7px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;transition:all .3s;position:relative;overflow:hidden}
+.timer-now::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#00e676;border-radius:0 2px 2px 0;transition:background .3s}
+.timer-now.call::before{background:#ffd600}
+.timer-now.breakdown::before{background:#ff1744}
+.tn-ico{font-size:1.4rem;min-width:28px;text-align:center}
+.tn-info{flex:1}
+.tn-lbl{font-family:'Share Tech Mono',monospace;font-size:.52rem;color:#5a8aaa;letter-spacing:2px}
+.tn-type{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:3px;color:#00e676;transition:color .3s}
+.timer-now.call .tn-type{color:#ffd600}
+.timer-now.breakdown .tn-type{color:#ff1744}
+.tn-time{font-family:'Share Tech Mono',monospace;font-size:2rem;font-weight:700;letter-spacing:2px;color:#00e676;transition:color .3s;text-shadow:0 0 12px rgba(0,230,118,.3)}
+.timer-now.call .tn-time{color:#ffd600;text-shadow:0 0 12px rgba(255,214,0,.3)}
+.timer-now.breakdown .tn-time{color:#ff1744;text-shadow:0 0 12px rgba(255,23,68,.3)}
+.timer-now.breakdown .tn-time{animation:pulse-red .8s ease-in-out infinite alternate}
+@keyframes pulse-red{from{opacity:1}to{opacity:.6}}
+
+/* ACCUMULATED TIMERS */
+.accum-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.accum-card{background:#030812;border:1px solid #0e1c2e;border-radius:6px;padding:8px 6px;text-align:center;transition:border-color .3s}
+.accum-card.active-G{border-color:rgba(0,230,118,.4)}
+.accum-card.active-Y{border-color:rgba(255,214,0,.4)}
+.accum-card.active-R{border-color:rgba(255,23,68,.4)}
+.ac-ico{font-size:1rem;margin-bottom:3px}
+.ac-lbl{font-family:'Share Tech Mono',monospace;font-size:.48rem;color:#5a8aaa;letter-spacing:1px;margin-bottom:4px}
+.ac-time{font-family:'Share Tech Mono',monospace;font-size:.9rem;font-weight:700;letter-spacing:1px;transition:color .3s}
+.accum-card.active-G .ac-time{color:#00e676}
+.accum-card.active-Y .ac-time{color:#ffd600}
+.accum-card.active-R .ac-time{color:#ff1744}
+.ac-pct{font-family:'Share Tech Mono',monospace;font-size:.46rem;color:#5a8aaa;margin-top:2px}
+.ac-bar{height:3px;background:#0e1c2e;border-radius:2px;margin-top:4px;overflow:hidden}
+.ac-bar-fill{height:100%;border-radius:2px;transition:width .5s ease,background .3s}
+
+/* ACK BUTTON */
+.btn-ack{width:100%;padding:15px;border:none;border-radius:10px;cursor:pointer;font-family:"Bebas Neue",sans-serif;font-size:1.2rem;letter-spacing:4px;background:linear-gradient(145deg,#001828,#000c14);color:#00b4ff;border:1px solid rgba(0,180,255,.35);box-shadow:0 6px 20px rgba(0,180,255,.15);transition:all .15s;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px}
+.btn-ack:active{transform:scale(.97)}
+.btn-ack:hover{background:linear-gradient(145deg,#002038,#001020);border-color:rgba(0,180,255,.6)}
+.btn-ack:disabled{opacity:.35;cursor:not-allowed}
+.lamp.lit-B{border-color:rgba(0,180,255,.5);box-shadow:0 0 16px rgba(0,180,255,.12)}
+.lamp.lit-B .lamp-orb{background:radial-gradient(circle at 35% 30%,#66ccff,#00b4ff);border-color:#00b4ff;box-shadow:0 0 14px #00b4ff}
+.lamp.lit-B .lamp-lbl{color:#00b4ff}
+
+/* STATION CARDS */
+.station-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stn-card{background:#060c18;border:1px solid #0e1c2e;border-radius:10px;padding:12px 12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.stn-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0 2px 2px 0;background:#00e676;transition:background .3s}
+.stn-card.active{border-color:rgba(0,180,255,.4);box-shadow:0 0 14px rgba(0,180,255,.1)}
+.stn-card.stn-call::before{background:#ffd600}
+.stn-card.stn-breakdown::before{background:#ff1744}
+.stn-card.stn-acknowledged::before{background:#00b4ff}
+.stn-card.stn-alert{animation:stn-pulse .8s ease-in-out infinite alternate}
+@keyframes stn-pulse{from{box-shadow:none}to{box-shadow:0 0 16px rgba(255,23,68,.2)}}
+.stn-name{font-family:'Share Tech Mono',monospace;font-size:.56rem;color:#6a9ab8;letter-spacing:2px;margin-bottom:4px}
+.stn-type{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:3px;color:#00e676;transition:color .3s;line-height:1}
+.stn-card.stn-call .stn-type{color:#ffd600}
+.stn-card.stn-breakdown .stn-type{color:#ff1744}
+.stn-card.stn-acknowledged .stn-type{color:#00b4ff}
+.stn-ico{font-size:1.2rem;float:right;margin-top:-2px}
+.stn-time{font-family:'Share Tech Mono',monospace;font-size:.55rem;color:#6a9ab8;margin-top:3px}
+.stn-active-dot{width:6px;height:6px;border-radius:50%;background:#00b4ff;display:inline-block;margin-right:4px;box-shadow:0 0 5px #00b4ff}
+.snd-btn{font-family:'Share Tech Mono',monospace;font-size:.58rem;background:none;border:1px solid #1a3048;border-radius:6px;padding:4px 10px;cursor:pointer;color:#5a8aaa;transition:all .2s;margin-bottom:10px}
+.snd-btn.on{color:#00e676;border-color:rgba(0,230,118,.3)}
+
+/* DOWNTIME LOG */
+.dt-panel{background:#060c18;border:1px solid #0e1c2e;border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.dt-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dt-title{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#ff1744;letter-spacing:3px}
+.dt-clr{font-family:'Share Tech Mono',monospace;font-size:.5rem;background:none;border:1px solid #2a4a60;border-radius:4px;padding:2px 8px;cursor:pointer;color:#5a8aaa;transition:all .2s}
+.dt-clr:hover{color:#ff1744;border-color:#ff1744}
+.dt-table{width:100%;border-collapse:collapse}
+.dt-table th{font-family:'Share Tech Mono',monospace;font-size:.5rem;color:#5a8aaa;letter-spacing:1px;padding:4px 6px;border-bottom:1px solid #0e1c2e;text-align:left;white-space:nowrap}
+.dt-table td{font-family:'Share Tech Mono',monospace;font-size:.62rem;padding:6px 6px;border-bottom:1px solid #080f1a;vertical-align:middle;color:#b0cce0}
+.dt-table tr:last-child td{border-bottom:none}
+.dt-type{display:inline-block;padding:2px 7px;border-radius:10px;font-size:.52rem;font-weight:700;letter-spacing:1px}
+.dt-type.call{background:rgba(255,214,0,.12);color:#ffd600;border:1px solid rgba(255,214,0,.2)}
+.dt-type.breakdown{background:rgba(255,23,68,.12);color:#ff1744;border:1px solid rgba(255,23,68,.2)}
+.dt-start{color:#88bbcc}
+.dt-end{color:#00e676}
+.dt-end.ongoing{color:#ff1744;animation:blink2 1s infinite}
+@keyframes blink2{0%,100%{opacity:1}50%{opacity:.4}}
+.dt-dur{color:#ddeeff;font-weight:700}
+.dt-dur.ongoing{color:#ff1744}
+.dt-empty{text-align:center;padding:16px;font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#1e3448;letter-spacing:2px}
+.dt-wrap{max-height:220px;overflow-y:auto}
+.dt-wrap::-webkit-scrollbar{width:3px}.dt-wrap::-webkit-scrollbar-thumb{background:#0e1c2e;border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="hdr-title">ANDON CTRL</div>
+    <div class="hdr-sub">CONTROL ROOM MONITOR</div>
+  </div>
+  <div class="hdr-right">
+    <div class="conn-pill">
+      <div class="dot" id="dot"></div>
+      <span id="ctxt">CONNECTING</span>
+    </div>
+    <div class="hdr-clk" id="clk">--:--:--</div>
+    <div class="hdr-date" id="dt"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- STATION SELECTOR -->
+  <div class="station-row">
+    <div class="stn-card line1 active" id="stnCard1" onclick="switchStation('S1')">
+      <div class="stn-ico" id="stnIco1">✅</div>
+      <div class="stn-line-tag">LINE 1</div>
+      <div class="stn-name">Base Coat / Clear Coat</div>
+      <div class="stn-type" id="stnType1">NORMAL</div>
+      <div class="stn-time" id="stnTime1">00:00:00</div>
+    </div>
+    <div class="stn-card line2" id="stnCard2" onclick="switchStation('S2')">
+      <div class="stn-ico" id="stnIco2">✅</div>
+      <div class="stn-line-tag">LINE 2</div>
+      <div class="stn-name">New Primer</div>
+      <div class="stn-type" id="stnType2">NORMAL</div>
+      <div class="stn-time" id="stnTime2">00:00:00</div>
+    </div>
+  </div>
+
+  <!-- ALERT BANNER -->
+  <div class="alert-banner" id="abanner">
+    <div class="ab-ico" id="abico">✅</div>
+    <div style="flex:1">
+      <div class="ab-type" id="abtype">NORMAL OPERATION</div>
+      <div class="ab-sub"  id="absub">ระบบทำงานปกติ — ไม่มีการแจ้งเตือน</div>
+    </div>
+    <div style="text-align:right">
+      <div class="ab-el"    id="abel">00:00</div>
+      <div class="ab-el-lbl">ELAPSED</div>
+    </div>
+  </div>
+
+  <!-- LAMPS -->
+  <div class="lamps">
+    <div class="lamp" id="lG">
+      <div class="lamp-orb">🟢</div>
+      <div class="lamp-lbl">NORMAL<br>ปกติ</div>
+    </div>
+    <div class="lamp" id="lY">
+      <div class="lamp-orb">🟡</div>
+      <div class="lamp-lbl">CALL<br>เรียกหัวหน้า</div>
+    </div>
+    <div class="lamp" id="lR">
+      <div class="lamp-orb">🔴</div>
+      <div class="lamp-lbl">BREAK<br>เครื่องเสีย</div>
+    </div>
+    <div class="lamp" id="lB">
+      <div class="lamp-orb">🔵</div>
+      <div class="lamp-lbl">ACK<br>รับทราบ</div>
+    </div>
+  </div>
+
+  <!-- ACK BUTTON -->
+  <button class="btn-ack" id="btnAck" onclick="sendAck()" disabled>
+    <span style="font-size:1.4rem">🔵</span>
+    <span>รับทราบ — กำลังดำเนินการ</span>
+  </button>
+
+  <!-- STATUS -->
+  <div class="ctrl-bar" id="cbar">
+    <div class="cb-ico" id="cbico">✅</div>
+    <div style="flex:1">
+      <div class="cb-lbl" id="cbLbl">สถานะล่าสุด · LINE 1 · Base Coat / Clear Coat</div>
+      <div class="cb-txt" id="cbtxt">NORMAL</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat"><div class="stat-num" id="stAlerts" style="color:#ff1744">0</div><div class="stat-lbl">ALERTS TODAY</div></div>
+    <div class="stat"><div class="stat-num" id="stBreak"  style="color:#ffd600">0</div><div class="stat-lbl">BREAKDOWNS</div></div>
+    <div class="stat"><div class="stat-num" id="stResolved" style="color:#00e676">0</div><div class="stat-lbl">RESOLVED</div></div>
+  </div>
+
+  <!-- TIMER SECTION -->
+  <div class="timer-section">
+    <div class="timer-hdr">
+      <span>▸ TIMER · จับเวลาแต่ละโหมด</span>
+      <button onclick="resetTimers()" style="font-family:'Share Tech Mono',monospace;font-size:.5rem;background:none;border:1px solid #1e3448;border-radius:4px;padding:2px 8px;cursor:pointer;color:#1e3448;transition:all .2s" onmouseover="this.style.color='#ff1744';this.style.borderColor='#ff1744'" onmouseout="this.style.color='#1e3448';this.style.borderColor='#1e3448'">RESET</button>
+    </div>
+
+    <!-- Current mode live timer -->
+    <div class="timer-now" id="timerNow">
+      <div class="tn-ico" id="tnIco">✅</div>
+      <div class="tn-info">
+        <div class="tn-lbl">โหมดปัจจุบัน</div>
+        <div class="tn-type" id="tnType">NORMAL</div>
+      </div>
+      <div class="tn-time" id="tnTime">00:00:00</div>
+    </div>
+
+    <!-- Accumulated time per mode -->
+    <div class="accum-grid">
+      <div class="accum-card" id="acG">
+        <div class="ac-ico">🟢</div>
+        <div class="ac-lbl">NORMAL</div>
+        <div class="ac-time" id="acGTime">00:00:00</div>
+        <div class="ac-pct" id="acGPct">0%</div>
+        <div class="ac-bar"><div class="ac-bar-fill" id="acGBar" style="width:0%;background:#00e676"></div></div>
+      </div>
+      <div class="accum-card" id="acY">
+        <div class="ac-ico">🟡</div>
+        <div class="ac-lbl">CALL SUP</div>
+        <div class="ac-time" id="acYTime">00:00:00</div>
+        <div class="ac-pct" id="acYPct">0%</div>
+        <div class="ac-bar"><div class="ac-bar-fill" id="acYBar" style="width:0%;background:#ffd600"></div></div>
+      </div>
+      <div class="accum-card" id="acR">
+        <div class="ac-ico">🔴</div>
+        <div class="ac-lbl">BREAKDOWN</div>
+        <div class="ac-time" id="acRTime">00:00:00</div>
+        <div class="ac-pct" id="acRPct">0%</div>
+        <div class="ac-bar"><div class="ac-bar-fill" id="acRBar" style="width:0%;background:#ff1744"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOWNTIME LOG -->
+  <div class="dt-panel">
+    <div class="dt-hdr">
+      <div class="dt-title">▸ DOWNTIME LOG · บันทึกเวลาหยุด-ซ่อม</div>
+      <button class="dt-clr" onclick="clearDowntime()">CLEAR</button>
+    </div>
+    <div class="dt-wrap">
+      <table class="dt-table" id="dtTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>ประเภท</th>
+            <th>เวลาเริ่ม</th>
+            <th>เวลาสิ้นสุด</th>
+            <th>ระยะเวลา</th>
+          </tr>
+        </thead>
+        <tbody id="dtBody">
+          <tr><td colspan="5" class="dt-empty">ยังไม่มีการบันทึก</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SOUND -->
+  <button class="snd-btn" id="sndBtn" onclick="toggleSound()">🔇 SOUND OFF — คลิกเพื่อเปิดเสียง</button>
+
+  <!-- LOG -->
+  <div class="log-panel">
+    <div class="log-hdr">
+      <div class="log-title">▸ EVENT LOG</div>
+      <button class="log-clr" onclick="clearLog()">CLEAR</button>
+    </div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+
+</div>
+
+<script>
+var CFG = {
+  apiKey:"AIzaSyCsuwwUKEw01sXhVHt-1WcF94F5kNMiCOI",
+  authDomain:"andon-system-7768d.firebaseapp.com",
+  databaseURL:"https://andon-system-7768d-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"andon-system-7768d",
+  storageBucket:"andon-system-7768d.firebasestorage.app",
+  messagingSenderId:"35986723687",
+  appId:"1:35986723687:web:34c48c4b2df30e8068d5c2"
+};
+
+var TYPES = {
+  normal:       {icon:'✅',label:'NORMAL OPERATION',  sub:'ระบบทำงานปกติ — ไม่มีการแจ้งเตือน',          col:'g',cls:'',             lamp:'G'},
+  call:         {icon:'📞',label:'CALL SUPERVISOR',    sub:'มีการเรียกหัวหน้างาน — กรุณาตอบรับ',         col:'y',cls:'call',         lamp:'Y'},
+  breakdown:    {icon:'🚨',label:'MACHINE BREAKDOWN',  sub:'เครื่องจักรขัดข้อง — ต้องการซ่อมด่วน',       col:'r',cls:'breakdown',    lamp:'R'},
+  acknowledged: {icon:'🔵',label:'รับทราบแล้ว',       sub:'ผู้ซ่อมรับทราบปัญหา — กำลังดำเนินการ',      col:'b',cls:'acknowledged', lamp:'B'}
+};
+
+// Station states
+var stations = {
+  S1: {type:'normal', prevType:'normal', ts:Date.now(), name:'Base Coat / Clear Coat'},
+  S2: {type:'normal', prevType:'normal', ts:Date.now(), name:'New Primer'}
+};
+var activeStation = 'S1'; // station ที่แสดงอยู่
+
+// Legacy compat (ใช้กับ onChanged เดิม)
+var curType='normal', prevType='normal', stateTs=Date.now();
+var sndOn=false, audioCtx=null, beepIv=null;
+var stats={alerts:0,breaks:0,resolved:0};
+
+// ── TIMER STATE ────────────────────────────────
+var timerAccum = { normal:0, call:0, breakdown:0 };
+var timerStart = Date.now();
+
+// ── DOWNTIME LOG ───────────────────────────────
+var downtimeLog = []; // [{type, startTs, endTs, no}]
+var openEntry   = null; // entry ที่ยังไม่จบ
+
+// ── INIT ──────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  renderAll();
+  setInterval(renderElapsed, 1000);
+  setInterval(function(){
+    var n=new Date();
+    document.getElementById('clk').textContent=n.toLocaleTimeString('th-TH',{hour12:false});
+    document.getElementById('dt').textContent=n.toLocaleDateString('th-TH',{day:'2-digit',month:'long',year:'numeric'});
+  },1000);
+  var n=new Date();
+  document.getElementById('clk').textContent=n.toLocaleTimeString('th-TH',{hour12:false});
+  document.getElementById('dt').textContent=n.toLocaleDateString('th-TH',{day:'2-digit',month:'long',year:'numeric'});
+
+  log('s','⚙ CONTROL ROOM ONLINE · รอสัญญาณจากหน้างาน...');
+
+  try {
+    firebase.initializeApp(CFG);
+    var db = firebase.database();
+
+    // ฟัง station01 (Base Coat / Clear Coat)
+    db.ref('andon/station01').on('value', function(snap){
+      setConn(true);
+      var d=snap.val();
+      if(d && d.type){ onStationChange('S1', d); }
+    }, function(e){ setConn(false); log('s','⚡ '+e.message); });
+
+    // ฟัง station02 (New Primer)
+    db.ref('andon/station02').on('value', function(snap){
+      setConn(true);
+      var d=snap.val();
+      if(d && d.type){ onStationChange('S2', d); }
+    });
+
+    setConn(true);
+  } catch(e){
+    setConn(false);
+    log('s','⚡ Firebase ไม่พร้อม: '+e.message);
+  }
+});
+
+// ── ON STATION CHANGE ────────────────────────
+function onStationChange(sid, d){
+  var st = stations[sid];
+  st.prevType = st.type;
+  st.type     = d.type;
+  st.ts       = d.timestamp||Date.now();
+  st.station  = d.station||sid;
+  st.name2    = d.name||'';
+
+  // อัปเดต legacy vars
+  if(sid===activeStation){
+    prevType = curType;
+    curType  = st.type;
+    stateTs  = st.ts;
+  }
+
+  // อัปเดตไฟ station cards
+  renderStationCards();
+
+  // ถ้า station นี้เป็น active หรือมี alert ให้แสดง
+  var hasAlert = (st.type!=='normal');
+  var otherSt = sid==='S1'?stations.S2:stations.S1;
+  if(hasAlert || sid===activeStation){
+    prevType = st.prevType;
+    curType  = st.type;
+    stateTs  = st.ts;
+    activeStation = sid;
+    onChanged(d);
+  } else {
+    renderStationCards();
+  }
+}
+
+// ── ON STATE CHANGE ───────────────────────────
+function onChanged(d){
+  var t = TYPES[curType]||TYPES.normal;
+
+  // สะสมเวลาโหมดก่อนหน้า
+  var elapsed = Date.now() - timerStart;
+  if(timerAccum[prevType] !== undefined) timerAccum[prevType] += elapsed;
+  timerStart = Date.now();
+
+  // ── DOWNTIME LOG ──
+  // ถ้าโหมดก่อนหน้าเป็น call หรือ breakdown → ปิด entry
+  if(openEntry && (prevType==='call' || prevType==='breakdown')){
+    openEntry.endTs = d.timestamp || Date.now();
+    downtimeLog.push(openEntry);
+    openEntry = null;
+  }
+  // ถ้าโหมดใหม่เป็น call หรือ breakdown → เปิด entry ใหม่
+  if(curType==='call' || curType==='breakdown'){
+    openEntry = {
+      no:   downtimeLog.length + 1,
+      type: curType,
+      startTs: d.timestamp || Date.now(),
+      endTs:   null
+    };
+  }
+  renderDowntime();
+
+  // stats
+  if(curType!=='normal' && curType!==prevType){ stats.alerts++; if(curType==='breakdown') stats.breaks++; }
+  if(curType==='normal' && prevType!=='normal'){ stats.resolved++; }
+  updateStats();
+
+  log(t.col,'['+d.station+'] '+t.label+' — '+t.sub);
+  playSound(curType);
+  if(navigator.vibrate && curType==='breakdown') navigator.vibrate([300,100,300]);
+  renderAll();
+}
+
+// ── RENDER ────────────────────────────────────
+function renderAll(){
+  var t = TYPES[curType]||TYPES.normal;
+
+  // banner
+  document.getElementById('abanner').className='alert-banner '+t.cls;
+  document.getElementById('abico').textContent  = t.icon;
+  document.getElementById('abtype').textContent = t.label;
+  document.getElementById('absub').textContent  = t.sub;
+
+  // lamps — acknowledged แสดงไฟน้ำเงิน + ไฟโหมดก่อนหน้า
+  var activeLamps = [];
+  if(curType==='acknowledged'){
+    activeLamps.push('B');
+    if(prevType==='call')      activeLamps.push('Y');
+    if(prevType==='breakdown') activeLamps.push('R');
+  } else {
+    if(t.lamp) activeLamps.push(t.lamp);
+  }
+  ['G','Y','R','B'].forEach(function(k){
+    document.getElementById('l'+k).className='lamp'+(activeLamps.indexOf(k)>=0?' lit-'+k:'');
+  });
+
+  // ctrl bar
+  document.getElementById('cbar').className='ctrl-bar '+t.cls;
+  document.getElementById('cbico').textContent = t.icon;
+  document.getElementById('cbtxt').textContent = t.label;
+
+  // ปุ่มรับทราบ — เปิดใช้เฉพาะตอน call หรือ breakdown เท่านั้น
+  var btnAck = document.getElementById('btnAck');
+  var canAck = (curType==='call' || curType==='breakdown');
+  btnAck.disabled = !canAck;
+  btnAck.style.opacity = canAck ? '1' : '0.35';
+}
+
+function renderElapsed(){
+  var s=Math.floor((Date.now()-stateTs)/1000);
+  document.getElementById('abel').textContent=
+    String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  renderTimer();
+}
+
+// ── TIMER RENDER ──────────────────────────────
+function fmtMs(ms){
+  var s=Math.floor(ms/1000);
+  var h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sc=s%60;
+  if(h>0) return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sc).padStart(2,'0');
+  return String(m).padStart(2,'0')+':'+String(sc).padStart(2,'0')+':'+String(Math.floor((ms%1000)/10)).padStart(2,'0');
+}
+
+function renderTimer(){
+  // เวลาโหมดปัจจุบัน (live)
+  var liveMs = Date.now() - timerStart;
+  var liveSec = Math.floor(liveMs/1000);
+  var lh=Math.floor(liveSec/3600), lm=Math.floor((liveSec%3600)/60), ls=liveSec%60;
+  document.getElementById('tnTime').textContent =
+    String(lh).padStart(2,'0')+':'+String(lm).padStart(2,'0')+':'+String(ls).padStart(2,'0');
+
+  // อัปเดต timer-now card
+  var t = TYPES[curType]||TYPES.normal;
+  var tnCard = document.getElementById('timerNow');
+  tnCard.className = 'timer-now ' + t.cls;
+  document.getElementById('tnIco').textContent  = t.icon;
+  document.getElementById('tnType').textContent = t.label;
+
+  // คำนวณเวลาสะสมรวม (รวม live ของโหมดปัจจุบัน)
+  var accum = {};
+  accum.normal    = (timerAccum.normal    || 0) + (curType==='normal'    ? liveMs : 0);
+  accum.call      = (timerAccum.call      || 0) + (curType==='call'      ? liveMs : 0);
+  accum.breakdown = (timerAccum.breakdown || 0) + (curType==='breakdown' ? liveMs : 0);
+  var total = accum.normal + accum.call + accum.breakdown;
+  if(total < 1) total = 1;
+
+  // อัปเดต accum cards
+  var map = [
+    {key:'normal',    elTime:'acGTime', elPct:'acGPct', elBar:'acGBar', elCard:'acG', lit:'G'},
+    {key:'call',      elTime:'acYTime', elPct:'acYPct', elBar:'acYBar', elCard:'acY', lit:'Y'},
+    {key:'breakdown', elTime:'acRTime', elPct:'acRPct', elBar:'acRBar', elCard:'acR', lit:'R'}
+  ];
+  map.forEach(function(m){
+    var ms  = accum[m.key]||0;
+    var sec = Math.floor(ms/1000);
+    var h=Math.floor(sec/3600), mn=Math.floor((sec%3600)/60), s2=sec%60;
+    var timeStr = String(h).padStart(2,'0')+':'+String(mn).padStart(2,'0')+':'+String(s2).padStart(2,'0');
+    var pct = Math.round(ms/total*100);
+
+    document.getElementById(m.elTime).textContent = timeStr;
+    document.getElementById(m.elPct).textContent  = pct + '%';
+    document.getElementById(m.elBar).style.width  = pct + '%';
+
+    // highlight card ที่กำลัง active
+    var card = document.getElementById(m.elCard);
+    card.className = 'accum-card' + (curType===m.key ? ' active-'+m.lit : '');
+  });
+}
+
+function resetTimers(){
+  timerAccum = {normal:0, call:0, breakdown:0};
+  timerStart = Date.now();
+  log('s','⏱ Timer reset แล้ว');
+}
+
+// ── DOWNTIME RENDER ───────────────────────────
+function fmt(ts){
+  if(!ts) return '—';
+  var d=new Date(ts);
+  return d.toLocaleTimeString('th-TH',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function durStr(startTs, endTs){
+  var ms = (endTs||Date.now()) - startTs;
+  var s  = Math.floor(ms/1000);
+  var h  = Math.floor(s/3600), m=Math.floor((s%3600)/60), sc=s%60;
+  if(h>0) return h+'h '+String(m).padStart(2,'0')+'m '+String(sc).padStart(2,'0')+'s';
+  if(m>0) return m+'m '+String(sc).padStart(2,'0')+'s';
+  return sc+'s';
+}
+
+function renderDowntime(){
+  var tbody = document.getElementById('dtBody');
+  var all = downtimeLog.slice(); // ปิดแล้ว
+  if(openEntry) all.push(openEntry); // เพิ่ม entry ที่ยังเปิดอยู่
+
+  if(all.length===0){
+    tbody.innerHTML='<tr><td colspan="5" class="dt-empty">ยังไม่มีการบันทึก</td></tr>';
+    return;
+  }
+
+  // เรียงล่าสุดอยู่บนสุด
+  var rows = all.slice().reverse().map(function(e, idx){
+    var isOpen  = !e.endTs;
+    var typeLabel = e.type==='breakdown'?'เครื่องเสีย':'เรียกหัวหน้า';
+    var typeCls   = e.type==='breakdown'?'breakdown':'call';
+    var no = all.length - idx;
+    return '<tr>'+
+      '<td style="color:#1e3448;text-align:center">'+no+'</td>'+
+      '<td><span class="dt-type '+typeCls+'">'+typeLabel+'</span></td>'+
+      '<td class="dt-start">'+fmt(e.startTs)+'</td>'+
+      '<td class="dt-end'+(isOpen?' ongoing':'')+'">'+( isOpen ? '⏳ กำลังซ่อม...' : fmt(e.endTs) )+'</td>'+
+      '<td class="dt-dur'+(isOpen?' ongoing':'')+'">'+durStr(e.startTs, e.endTs)+'</td>'+
+      '</tr>';
+  }).join('');
+  tbody.innerHTML = rows;
+}
+
+// อัปเดต duration ของ openEntry ทุก 1 วินาที
+setInterval(function(){
+  if(openEntry) renderDowntime();
+}, 1000);
+
+function clearDowntime(){
+  downtimeLog = [];
+  openEntry   = null;
+  renderDowntime();
+  log('s','🗑 Downtime log ล้างแล้ว');
+}
+
+function updateStats(){
+  document.getElementById('stAlerts').textContent   = stats.alerts;
+  document.getElementById('stBreak').textContent    = stats.breaks;
+  document.getElementById('stResolved').textContent = stats.resolved;
+}
+
+// ── CONN ──────────────────────────────────────
+function setConn(ok){
+  document.getElementById('dot').className='dot '+(ok?'on':'off');
+  document.getElementById('ctxt').textContent=ok?'ONLINE':'OFFLINE';
+}
+
+// ── SOUND ─────────────────────────────────────
+function toggleSound(){
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  sndOn=!sndOn;
+  var btn=document.getElementById('sndBtn');
+  btn.className='snd-btn'+(sndOn?' on':'');
+  btn.textContent=sndOn?'🔊 SOUND ON — คลิกเพื่อปิดเสียง':'🔇 SOUND OFF — คลิกเพื่อเปิดเสียง';
+  if(!sndOn){ clearInterval(beepIv); beepIv=null; }
+}
+
+function beep(f,d){
+  if(!audioCtx||!sndOn) return;
+  var o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.frequency.value=f; o.type='square';
+  g.gain.setValueAtTime(.18,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+d);
+  o.start(); o.stop(audioCtx.currentTime+d);
+}
+
+function playSound(type){
+  clearInterval(beepIv); beepIv=null;
+  if(type==='breakdown'){
+    // Breakdown: เสียงน่ารำคาญ — สลับความถี่ถี่มาก 3 ระดับ
+    var bdStep=0;
+    beepIv=setInterval(function(){
+      var freqs=[880,660,1100];
+      beep(freqs[bdStep%3],.06);
+      bdStep++;
+    },200);
+  } else if(type==='call'){
+    // Call: ดังต่อเนื่อง 2 โน้ตสลับ
+    beepIv=setInterval(function(){
+      beep(440,.15);
+      setTimeout(function(){ beep(380,.15); },250);
+    },900);
+  } else if(type==='acknowledged'){
+    // Acknowledged: เสียงเตือนยังดังแต่เบาลง (ใช้ call pattern)
+    beepIv=setInterval(function(){
+      beep(440,.1);
+      setTimeout(function(){ beep(380,.1); },280);
+    },1200);
+  } else {
+    clearInterval(beepIv);
+  }
+}
+
+// ── LOG ───────────────────────────────────────
+// ── STATION CARDS ────────────────────────────
+function renderStationCards(){
+  var stnMap = [
+    {sid:'S1', cardId:'stnCard1', icoId:'stnIco1', typeId:'stnType1', timeId:'stnTime1', lineClass:'line1'},
+    {sid:'S2', cardId:'stnCard2', icoId:'stnIco2', typeId:'stnType2', timeId:'stnTime2', lineClass:'line2'}
+  ];
+  stnMap.forEach(function(m){
+    var st  = stations[m.sid];
+    var t   = TYPES[st.type]||TYPES.normal;
+    var card= document.getElementById(m.cardId);
+    var isActive = (m.sid===activeStation);
+
+    // เก็บ line class และ active
+    var cls = 'stn-card '+m.lineClass+' stn-'+st.type+(isActive?' active':'');
+    if(st.type==='breakdown') cls += ' stn-alert';
+    card.className = cls;
+
+    document.getElementById(m.icoId).textContent  = t.icon;
+    document.getElementById(m.typeId).textContent = t.label;
+
+    // แสดงเวลาที่ผ่านมา
+    var sec = Math.floor((Date.now()-(st.ts||Date.now()))/1000);
+    var mm=String(Math.floor(sec/60)).padStart(2,'0'), ss=String(sec%60).padStart(2,'0');
+    document.getElementById(m.timeId).textContent = sec>0 ? mm+':'+ss+' ที่แล้ว' : 'เพิ่งอัปเดต';
+  });
+}
+
+function switchStation(sid){
+  activeStation = sid;
+  var st = stations[sid];
+  prevType = st.prevType;
+  curType  = st.type;
+  stateTs  = st.ts;
+  renderAll();
+  renderStationCards();
+  var label = sid==='S1'?'LINE 1 · Base Coat / Clear Coat':'LINE 2 · New Primer';
+  document.getElementById('cbLbl').textContent = 'สถานะล่าสุด · '+label;
+}
+
+// ── SEND ACKNOWLEDGE (แก้ให้ส่งถูก station) ──
+function sendAck(){
+  if(curType!=='call' && curType!=='breakdown') return;
+  var path  = activeStation==='S1'?'andon/station01':'andon/station02';
+  var sname = activeStation==='S1'?'Base Coat / Clear Coat':'New Primer';
+  var pl = {
+    type:'acknowledged', station:activeStation,
+    name:sname, timestamp:Date.now(), ackedBy:'CONTROL ROOM'
+  };
+  firebase.database().ref(path).set(pl).then(function(){
+    log('b','🔵 รับทราบ ['+sname+'] — แจ้งหน้างานเรียบร้อย');
+  }).catch(function(e){ log('s','⚡ ส่งรับทราบไม่ได้: '+e.message); });
+}
+
+// ── RENDER STATION CARDS TIMER ─────────────
+setInterval(renderStationCards, 5000);
+
+function renderStationCards2(){}
+
+function log(col,msg){
+  var b=document.getElementById('logBox');
+  var now=new Date().toLocaleTimeString('th-TH',{hour12:false});
+  var el=document.createElement('div'); el.className='le '+col;
+  el.innerHTML='<span class="ts">['+now+']</span><span class="m">'+msg+'</span>';
+  b.appendChild(el); b.scrollTop=b.scrollHeight;
+  if(b.children.length>100) b.removeChild(b.firstChild);
+}
+
+function clearLog(){
+  document.getElementById('logBox').innerHTML='';
+}
+</script>
+</body>
+</html>
