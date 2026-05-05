@@ -323,21 +323,26 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#03060d;color:#ddeeff;mi
   <div class="dt-panel">
     <div class="dt-hdr">
       <div class="dt-title">▸ DOWNTIME LOG · บันทึกเวลาหยุด-ซ่อม</div>
-      <button class="dt-clr" onclick="clearDowntime()">CLEAR</button>
+      <div style="display:flex;gap:6px">
+        <button class="dt-clr" onclick="exportCSV()" style="color:#00e676;border-color:#1a4a2a">⬇ CSV</button>
+        <button class="dt-clr" onclick="clearDowntime()">CLEAR</button>
+      </div>
     </div>
     <div class="dt-wrap">
       <table class="dt-table" id="dtTable">
         <thead>
           <tr>
             <th>#</th>
+            <th>ไลน์</th>
             <th>ประเภท</th>
+            <th>รายละเอียด</th>
             <th>เวลาเริ่ม</th>
             <th>เวลาสิ้นสุด</th>
             <th>ระยะเวลา</th>
           </tr>
         </thead>
         <tbody id="dtBody">
-          <tr><td colspan="5" class="dt-empty">ยังไม่มีการบันทึก</td></tr>
+          <tr><td colspan="7" class="dt-empty">ยังไม่มีการบันทึก</td></tr>
         </tbody>
       </table>
     </div>
@@ -487,8 +492,10 @@ function onChanged(d){
   // ถ้าโหมดใหม่เป็น call หรือ breakdown → เปิด entry ใหม่
   if(curType==='call' || curType==='breakdown'){
     openEntry = {
-      no:   downtimeLog.length + 1,
-      type: curType,
+      no:      downtimeLog.length + 1,
+      type:    curType,
+      station: d.station || d.name || '—',
+      detail:  d.detail  || '',
       startTs: d.timestamp || Date.now(),
       endTs:   null
     };
@@ -625,23 +632,26 @@ function durStr(startTs, endTs){
 
 function renderDowntime(){
   var tbody = document.getElementById('dtBody');
-  var all = downtimeLog.slice(); // ปิดแล้ว
-  if(openEntry) all.push(openEntry); // เพิ่ม entry ที่ยังเปิดอยู่
+  var all = downtimeLog.slice();
+  if(openEntry) all.push(openEntry);
 
   if(all.length===0){
-    tbody.innerHTML='<tr><td colspan="5" class="dt-empty">ยังไม่มีการบันทึก</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" class="dt-empty">ยังไม่มีการบันทึก</td></tr>';
     return;
   }
 
-  // เรียงล่าสุดอยู่บนสุด
   var rows = all.slice().reverse().map(function(e, idx){
-    var isOpen  = !e.endTs;
+    var isOpen    = !e.endTs;
     var typeLabel = e.type==='breakdown'?'เครื่องเสีย':'เรียกหัวหน้า';
     var typeCls   = e.type==='breakdown'?'breakdown':'call';
-    var no = all.length - idx;
+    var no        = all.length - idx;
+    var detailTxt = e.detail ? ('<span style="color:#88bbcc">'+e.detail+'</span>') : '<span style="color:#2a4a60">—</span>';
+    var stationTxt= e.station || '—';
     return '<tr>'+
-      '<td style="color:#1e3448;text-align:center">'+no+'</td>'+
+      '<td style="color:#4a7090;text-align:center">'+no+'</td>'+
+      '<td style="color:#6a9ab8;font-size:.58rem">'+stationTxt+'</td>'+
       '<td><span class="dt-type '+typeCls+'">'+typeLabel+'</span></td>'+
+      '<td>'+detailTxt+'</td>'+
       '<td class="dt-start">'+fmt(e.startTs)+'</td>'+
       '<td class="dt-end'+(isOpen?' ongoing':'')+'">'+( isOpen ? '⏳ กำลังซ่อม...' : fmt(e.endTs) )+'</td>'+
       '<td class="dt-dur'+(isOpen?' ongoing':'')+'">'+durStr(e.startTs, e.endTs)+'</td>'+
@@ -650,16 +660,52 @@ function renderDowntime(){
   tbody.innerHTML = rows;
 }
 
-// อัปเดต duration ของ openEntry ทุก 1 วินาที
-setInterval(function(){
-  if(openEntry) renderDowntime();
-}, 1000);
+// อัปเดต duration ทุก 1 วินาที
+setInterval(function(){ if(openEntry) renderDowntime(); }, 1000);
 
 function clearDowntime(){
   downtimeLog = [];
   openEntry   = null;
   renderDowntime();
   log('s','🗑 Downtime log ล้างแล้ว');
+}
+
+// ── EXPORT CSV ────────────────────────────────
+function exportCSV(){
+  var all = downtimeLog.slice();
+  if(openEntry) all.push(openEntry);
+  if(all.length===0){ alert('ยังไม่มีข้อมูลให้ export ครับ'); return; }
+
+  var BOM = '\uFEFF'; // รองรับภาษาไทยใน Excel
+  var headers = ['#','ไลน์','ประเภท','รายละเอียด','เวลาเริ่ม','เวลาสิ้นสุด','ระยะเวลา(วินาที)','ระยะเวลา'];
+  var rows = all.map(function(e,i){
+    var typeLabel = e.type==='breakdown'?'เครื่องเสีย':'เรียกหัวหน้า';
+    var endTime   = e.endTs ? fmt(e.endTs) : 'กำลังดำเนินการ';
+    var durSec    = e.endTs ? Math.floor((e.endTs-e.startTs)/1000) : Math.floor((Date.now()-e.startTs)/1000);
+    var durText   = durStr(e.startTs, e.endTs);
+    return [
+      i+1,
+      '"'+(e.station||'')+ '"',
+      '"'+typeLabel+'"',
+      '"'+(e.detail||'')+'"',
+      '"'+fmt(e.startTs)+'"',
+      '"'+endTime+'"',
+      durSec,
+      '"'+durText+'"'
+    ].join(',');
+  });
+
+  var today = new Date();
+  var dateStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  var csv = BOM + headers.join(',') + '\n' + rows.join('\n');
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url;
+  a.download = 'ANDON_Downtime_'+dateStr+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  log('g','⬇ Export CSV แล้ว — '+all.length+' รายการ');
 }
 
 function updateStats(){

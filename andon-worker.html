@@ -80,6 +80,12 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#05080f;color:#cce0f0;mi
 .cf-title{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:4px;margin-bottom:8px;color:#cce0f0}
 .cf-desc{font-size:.86rem;color:#4a6a80;margin-bottom:22px;line-height:1.7;white-space:pre-line}
 .cf-btns{display:flex;gap:10px}
+/* Detail input */
+.detail-wrap{margin-bottom:16px;text-align:left}
+.detail-lbl{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#5a8aaa;letter-spacing:2px;margin-bottom:6px;display:block}
+.detail-inp{width:100%;background:#030810;border:1px solid #1e3a52;border-radius:8px;padding:10px 12px;color:#ddeeff;font-family:'Noto Sans Thai',sans-serif;font-size:.9rem;resize:none;height:80px;outline:none;transition:border-color .2s;line-height:1.6}
+.detail-inp:focus{border-color:#00b4ff;box-shadow:0 0 0 2px rgba(0,180,255,.15)}
+.detail-inp::placeholder{color:#2a4a60;font-size:.82rem}
 .byes{flex:1;padding:14px;border:none;border-radius:8px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;background:#0a2010;color:#00e676;border:1px solid #1a4a20;transition:all .12s}
 .byes:active{transform:scale(.95)}
 .bno{flex:1;padding:14px;border:none;border-radius:8px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;background:#141414;color:#4a6a80;border:1px solid #1e2a30;transition:all .12s}
@@ -165,6 +171,10 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#05080f;color:#cce0f0;mi
     <div class="cf-ico"   id="cfIco"></div>
     <div class="cf-title" id="cfTitle"></div>
     <div class="cf-desc"  id="cfDesc"></div>
+    <div class="detail-wrap" id="detailWrap">
+      <label class="detail-lbl">▸ รายละเอียดปัญหา (ไม่บังคับ)</label>
+      <textarea class="detail-inp" id="detailInp" placeholder="เช่น: มอเตอร์ร้อน, สายพานหลุด, น้ำยาหมด..." maxlength="200"></textarea>
+    </div>
     <div class="cf-btns">
       <button class="byes" onclick="doSend()">✔ ยืนยัน</button>
       <button class="bno"  onclick="closeOv()">✕ ยกเลิก</button>
@@ -252,7 +262,12 @@ function ask(type){
   document.getElementById('cfIco').textContent   = c.icon||'❓';
   document.getElementById('cfTitle').textContent = c.title||type;
   document.getElementById('cfDesc').textContent  = c.desc||'';
+  // ซ่อน/แสดง detail input
+  var showDetail = (type==='call' || type==='breakdown');
+  document.getElementById('detailWrap').style.display = showDetail ? 'block' : 'none';
+  document.getElementById('detailInp').value = '';
   document.getElementById('overlay').classList.add('show');
+  if(showDetail) setTimeout(function(){ document.getElementById('detailInp').focus(); }, 300);
 }
 
 function closeOv(){
@@ -268,7 +283,14 @@ function doSend(){
   if(!pending) return;
   var realType = (pending==='reset') ? 'normal' : pending;
   var lineName = activeLine===1?'Base Coat / Clear Coat':'New Primer';
-  var pl = {type:realType, station:'LINE-'+activeLine, name:lineName, timestamp:Date.now()};
+  var detail   = document.getElementById('detailInp').value.trim();
+  var pl = {
+    type:      realType,
+    station:   'LINE-'+activeLine,
+    name:      lineName,
+    detail:    detail || '',
+    timestamp: Date.now()
+  };
 
   curType  = realType;
   stateTs  = pl.timestamp;
@@ -276,7 +298,9 @@ function doSend(){
 
   if(dbRef){
     dbRef.set(pl).then(function(){
-      log(TYPES[realType].col,'📤 ส่งแล้ว: '+(realType==='normal'?'RESET':''+TYPES[realType].label));
+      var msg = realType==='normal' ? 'RESET' : TYPES[realType].label;
+      if(detail) msg += ' · '+detail;
+      log(TYPES[realType].col,'📤 ส่งแล้ว: '+msg);
     }).catch(function(e){ log('s','⚡ ส่งไม่ได้: '+e.message); });
   } else {
     log('s','⚡ ไม่มี Firebase — กรุณาตรวจสอบ internet');
