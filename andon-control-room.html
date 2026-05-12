@@ -479,18 +479,22 @@ function onChanged(d){
 
   // สะสมเวลาโหมดก่อนหน้า
   var elapsed = Date.now() - timerStart;
-  if(timerAccum[prevType] !== undefined) timerAccum[prevType] += elapsed;
+  // acknowledged นับรวมกับโหมดที่ค้างอยู่ ไม่ใช่โหมดใหม่
+  var accumKey = (prevType==='acknowledged')
+    ? (openEntry ? openEntry.type : 'normal')
+    : prevType;
+  if(timerAccum[accumKey] !== undefined) timerAccum[accumKey] += elapsed;
   timerStart = Date.now();
 
   // ── DOWNTIME LOG ──
-  // ถ้าโหมดก่อนหน้าเป็น call หรือ breakdown → ปิด entry
-  if(openEntry && (prevType==='call' || prevType==='breakdown')){
+  // ปิด entry เฉพาะเมื่อกลับเป็น normal → acknowledged ไม่ปิด นับต่อเนื่อง
+  if(openEntry && curType==='normal'){
     openEntry.endTs = d.timestamp || Date.now();
     downtimeLog.push(openEntry);
     openEntry = null;
   }
-  // ถ้าโหมดใหม่เป็น call หรือ breakdown → เปิด entry ใหม่
-  if(curType==='call' || curType==='breakdown'){
+  // เปิด entry ใหม่เฉพาะ call/breakdown และยังไม่มี entry เปิดอยู่
+  if((curType==='call' || curType==='breakdown') && !openEntry){
     openEntry = {
       no:      downtimeLog.length + 1,
       type:    curType,
@@ -500,11 +504,16 @@ function onChanged(d){
       endTs:   null
     };
   }
+  // มี entry เปิดอยู่แล้ว อัปเดต type/detail
+  if(openEntry && (curType==='call' || curType==='breakdown')){
+    openEntry.type   = curType;
+    openEntry.detail = d.detail || openEntry.detail || '';
+  }
   renderDowntime();
 
   // stats
-  if(curType!=='normal' && curType!==prevType){ stats.alerts++; if(curType==='breakdown') stats.breaks++; }
-  if(curType==='normal' && prevType!=='normal'){ stats.resolved++; }
+  if(curType!=='normal' && curType!=='acknowledged' && curType!==prevType){ stats.alerts++; if(curType==='breakdown') stats.breaks++; }
+  if(curType==='normal' && prevType!=='normal' && prevType!=='acknowledged'){ stats.resolved++; }
   updateStats();
 
   log(t.col,'['+d.station+'] '+t.label+' — '+t.sub);
