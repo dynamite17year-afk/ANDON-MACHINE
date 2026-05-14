@@ -517,6 +517,12 @@ function onChanged(d){
   updateStats();
 
   log(t.col,'['+d.station+'] '+t.label+' — '+t.sub);
+
+  // ── แจ้งเตือน Telegram ──
+  if(curType==='call' || curType==='breakdown' || curType==='acknowledged'){
+    sendTelegram(curType, d);
+  }
+
   playSound(curType);
   if(navigator.vibrate && curType==='breakdown') navigator.vibrate([300,100,300]);
   renderAll();
@@ -816,7 +822,26 @@ function switchStation(sid){
   document.getElementById('cbLbl').textContent = 'สถานะล่าสุด · '+label;
 }
 
-// ── SEND ACKNOWLEDGE (แก้ให้ส่งถูก station) ──
+// ── TELEGRAM CONFIG ───────────────────────────
+var TG_TOKEN  = '8829863739:AAGWi6-uZq8ybe_KAXKCl9y2jzrP1Mr_a4s';
+var TG_CHAT   = '-5142934373';
+
+function sendTelegram(type, data){
+  var typeLabel = type==='breakdown' ? '🚨 เครื่องเสีย'
+                : type==='call'      ? '📞 เรียกหัวหน้า'
+                : type==='acknowledged' ? '🔵 รับทราบแล้ว'
+                : '✅ กลับปกติ';
+  var lineName  = data.name || data.station || '—';
+  var detail    = data.detail ? '\nรายละเอียด: '+data.detail : '';
+  var now       = new Date().toLocaleTimeString('th-TH',{hour12:false});
+  var msg = typeLabel+'\n\nไลน์: '+lineName+detail+'\nเวลา: '+now;
+
+  fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:TG_CHAT, text:msg})
+  }).catch(function(e){ console.log('Telegram error:',e); });
+}
 function sendAck(){
   if(curType!=='call' && curType!=='breakdown') return;
   var path  = activeStation==='S1'?'andon/station01':'andon/station02';
