@@ -97,15 +97,13 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#05080f;color:#cce0f0;mi
 .le{display:flex;gap:8px;margin-bottom:3px}
 .le .ts{color:#1e3448;white-space:nowrap}
 .le.g .m{color:#00e676}.le.y .m{color:#ffd600}.le.r .m{color:#ff1744}.le.s .m{color:#2a4a6a}.le.b .m{color:#00b4ff}
-/* REPORTER NAME */
-.name-row{display:flex;align-items:center;gap:10px;background:#0a0f1a;border:1px solid #142030;border-radius:10px;padding:10px 14px;margin-bottom:14px}
-.name-ico{font-size:1.3rem}
-.name-info{flex:1;min-width:0}
-.name-lbl{font-family:'Share Tech Mono',monospace;font-size:.54rem;color:#304a60;letter-spacing:2px;margin-bottom:2px}
-.name-val{font-family:'Noto Sans Thai',sans-serif;font-size:.92rem;color:#00b4ff;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.name-val.empty{color:#304a60;font-weight:400}
-.name-edit-btn{font-family:'Share Tech Mono',monospace;font-size:.56rem;background:none;border:1px solid #1e3a52;border-radius:6px;padding:5px 12px;cursor:pointer;color:#5a8aaa;transition:all .2s;white-space:nowrap;flex-shrink:0}
-.name-edit-btn:active{transform:scale(.95)}
+/* NAME IN MODAL */
+.cf-name-wrap{margin-bottom:14px;text-align:left}
+.cf-name-lbl{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#5a8aaa;letter-spacing:2px;margin-bottom:6px;display:block}
+.cf-name-inp{width:100%;background:#030810;border:1px solid #1e3a52;border-radius:8px;padding:10px 12px;color:#00b4ff;font-family:'Noto Sans Thai',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;font-weight:600}
+.cf-name-inp:focus{border-color:#00b4ff;box-shadow:0 0 0 2px rgba(0,180,255,.15)}
+.cf-name-inp::placeholder{color:#2a4a60;font-size:.85rem;font-weight:400}
+.byes:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
 </style>
 </head>
 <body>
@@ -119,16 +117,6 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#05080f;color:#cce0f0;mi
 </div>
 
 <div class="wrap">
-  <!-- ชื่อผู้แจ้ง -->
-  <div class="name-row">
-    <div class="name-ico">👤</div>
-    <div class="name-info">
-      <div class="name-lbl">▸ ชื่อผู้แจ้ง · REPORTER</div>
-      <div class="name-val empty" id="reporterDisplay">— กรุณาระบุชื่อ —</div>
-    </div>
-    <button class="name-edit-btn" onclick="editReporter()">✏ แก้ไขชื่อ</button>
-  </div>
-
   <div class="sec" style="margin-bottom:8px">▸ เลือกไลน์การผลิต</div>
   <div class="line-sel">
     <button class="line-btn l1 active" id="lbtn1" onclick="selectLine(1)">
@@ -190,12 +178,16 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#05080f;color:#cce0f0;mi
     <div class="cf-ico"   id="cfIco"></div>
     <div class="cf-title" id="cfTitle"></div>
     <div class="cf-desc"  id="cfDesc"></div>
+    <div class="cf-name-wrap">
+      <label class="cf-name-lbl" id="cfNameLbl">▸ ชื่อผู้แจ้ง · REPORTER (บังคับ)</label>
+      <input class="cf-name-inp" id="cfNameInp" type="text" placeholder="ระบุชื่อก่อนยืนยัน..." maxlength="50" oninput="checkNameInput()">
+    </div>
     <div class="detail-wrap" id="detailWrap">
       <label class="detail-lbl">▸ รายละเอียดปัญหา (ไม่บังคับ)</label>
       <textarea class="detail-inp" id="detailInp" placeholder="เช่น: มอเตอร์ร้อน, สายพานหลุด, น้ำยาหมด..." maxlength="200"></textarea>
     </div>
     <div class="cf-btns">
-      <button class="byes" onclick="doSend()">✔ ยืนยัน</button>
+      <button class="byes" id="btnYes" onclick="doSend()" disabled>✔ ยืนยัน</button>
       <button class="bno"  onclick="closeOv()">✕ ยกเลิก</button>
     </div>
   </div>
@@ -227,32 +219,14 @@ var CF = {
 
 var curType='normal', stateTs=Date.now(), pending=null, dbRef=null;
 var activeLine = 1; // 1=Base Coat/Clear Coat, 2=New Primer
-var reporterName = '';
 
-// ── REPORTER NAME ──────────────────────────────
-function editReporter(){
-  var n = prompt('ระบุชื่อผู้แจ้ง:', reporterName);
-  if(n !== null){
-    reporterName = n.trim();
-    try{ localStorage.setItem('andon_reporter', reporterName); }catch(e){}
-    updateReporterDisplay();
-  }
-}
-function updateReporterDisplay(){
-  var el = document.getElementById('reporterDisplay');
-  if(reporterName){
-    el.textContent = reporterName;
-    el.className   = 'name-val';
-  } else {
-    el.textContent = '— กรุณาระบุชื่อ —';
-    el.className   = 'name-val empty';
-  }
+function checkNameInput(){
+  var v = document.getElementById('cfNameInp').value.trim();
+  document.getElementById('btnYes').disabled = !v;
 }
 
 // ── INIT ──────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function(){
-  try{ reporterName = localStorage.getItem('andon_reporter') || ''; }catch(e){}
-  updateReporterDisplay();
   render();
   setInterval(render, 1000);
   log('s','⚙ WORKER PANEL พร้อมใช้งาน');
@@ -304,12 +278,25 @@ function ask(type){
   document.getElementById('cfIco').textContent   = c.icon||'❓';
   document.getElementById('cfTitle').textContent = c.title||type;
   document.getElementById('cfDesc').textContent  = c.desc||'';
+  // label ชื่อ
+  document.getElementById('cfNameLbl').textContent = (type==='reset')
+    ? '▸ ชื่อผู้แก้ไข · FIXER (บังคับ)'
+    : '▸ ชื่อผู้แจ้ง · REPORTER (บังคับ)';
+  // โหลดชื่อที่บันทึกไว้
+  var saved = '';
+  try{ saved = localStorage.getItem('andon_reporter') || ''; }catch(e){}
+  document.getElementById('cfNameInp').value = saved;
+  document.getElementById('btnYes').disabled = !saved.trim();
   // ซ่อน/แสดง detail input
   var showDetail = (type==='call' || type==='breakdown');
   document.getElementById('detailWrap').style.display = showDetail ? 'block' : 'none';
   document.getElementById('detailInp').value = '';
   document.getElementById('overlay').classList.add('show');
-  if(showDetail) setTimeout(function(){ document.getElementById('detailInp').focus(); }, 300);
+  setTimeout(function(){
+    var inp = document.getElementById('cfNameInp');
+    if(!inp.value.trim()) inp.focus();
+    else if(showDetail) document.getElementById('detailInp').focus();
+  }, 300);
 }
 
 function closeOv(){
@@ -321,6 +308,9 @@ document.getElementById('overlay').addEventListener('click', function(e){
 });
 
 function doSend(){
+  var nameVal = document.getElementById('cfNameInp').value.trim();
+  if(!nameVal){ document.getElementById('cfNameInp').focus(); return; }
+  try{ localStorage.setItem('andon_reporter', nameVal); }catch(e){}
   closeOv();
   if(!pending) return;
   var realType = (pending==='reset') ? 'normal' : pending;
@@ -331,7 +321,7 @@ function doSend(){
     station:   'LINE-'+activeLine,
     name:      lineName,
     detail:    detail || '',
-    reporter:  reporterName || 'ไม่ระบุ',
+    reporter:  nameVal,
     timestamp: Date.now()
   };
 
@@ -341,10 +331,9 @@ function doSend(){
 
   if(dbRef){
     dbRef.set(pl).then(function(){
-      var msg = realType==='normal' ? 'RESET' : TYPES[realType].label;
+      var msg = realType==='normal' ? 'แก้ไขแล้ว' : TYPES[realType].label;
       if(detail) msg += ' · '+detail;
-      var rpt = reporterName ? ' ['+reporterName+']' : '';
-      log(TYPES[realType].col,'📤 ส่งแล้ว: '+msg+rpt);
+      log(TYPES[realType].col,'📤 ส่งแล้ว: '+msg+' ['+nameVal+']');
     }).catch(function(e){ log('s','⚡ ส่งไม่ได้: '+e.message); });
   } else {
     log('s','⚡ ไม่มี Firebase — กรุณาตรวจสอบ internet');

@@ -182,12 +182,25 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#03060d;color:#ddeeff;mi
 .dt-empty{text-align:center;padding:16px;font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#1e3448;letter-spacing:2px}
 .dt-wrap{max-height:220px;overflow-y:auto}
 .dt-wrap::-webkit-scrollbar{width:3px}.dt-wrap::-webkit-scrollbar-thumb{background:#0e1c2e;border-radius:2px}
-/* ACKER NAME INPUT */
-.acker-name-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;background:#040a14;border:1px solid #0e1c2e;border-radius:8px;padding:9px 12px}
-.acker-name-lbl{font-family:'Share Tech Mono',monospace;font-size:.56rem;color:#3a6080;letter-spacing:2px;white-space:nowrap}
-.acker-name-inp{flex:1;background:transparent;border:none;border-bottom:1px solid #1a3048;padding:2px 6px;color:#00b4ff;font-family:'Noto Sans Thai',sans-serif;font-size:.92rem;outline:none;transition:border-color .2s;font-weight:600}
-.acker-name-inp:focus{border-bottom-color:#00b4ff}
-.acker-name-inp::placeholder{color:#2a4060;font-size:.82rem;font-weight:400}
+/* ACK MODAL */
+.ack-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.ack-overlay.show{opacity:1;pointer-events:all}
+.ack-box{background:#070d1a;border:1px solid #1a3048;border-radius:16px;padding:28px 22px;width:88%;max-width:360px;text-align:center;transform:scale(.9);transition:transform .2s}
+.ack-overlay.show .ack-box{transform:scale(1)}
+.ack-ico{font-size:3rem;margin-bottom:10px}
+.ack-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:4px;color:#cce0f0;margin-bottom:6px}
+.ack-desc{font-size:.84rem;color:#4a6a80;margin-bottom:18px;line-height:1.7}
+.ack-name-wrap{margin-bottom:16px;text-align:left}
+.ack-name-lbl{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#5a8aaa;letter-spacing:2px;margin-bottom:6px;display:block}
+.ack-name-inp{width:100%;background:#030810;border:1px solid #1e3a52;border-radius:8px;padding:10px 12px;color:#00b4ff;font-family:'Noto Sans Thai',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;font-weight:600}
+.ack-name-inp:focus{border-color:#00b4ff;box-shadow:0 0 0 2px rgba(0,180,255,.15)}
+.ack-name-inp::placeholder{color:#2a4a60;font-size:.85rem;font-weight:400}
+.ack-btns{display:flex;gap:10px}
+.ack-byes{flex:1;padding:14px;border:none;border-radius:8px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;background:#051828;color:#00b4ff;border:1px solid #0a3050;transition:all .12s}
+.ack-byes:active{transform:scale(.95)}
+.ack-byes:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
+.ack-bno{flex:1;padding:14px;border:none;border-radius:8px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;background:#141414;color:#4a6a80;border:1px solid #1e2a30;transition:all .12s}
+.ack-bno:active{transform:scale(.95)}
 </style>
 </head>
 <body>
@@ -260,14 +273,8 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#03060d;color:#ddeeff;mi
     </div>
   </div>
 
-  <!-- ชื่อผู้รับทราบ -->
-  <div class="acker-name-row">
-    <div class="acker-name-lbl">👤 ผู้รับทราบ:</div>
-    <input class="acker-name-inp" id="ackerNameInp" type="text" placeholder="ระบุชื่อก่อนกด รับทราบ..." maxlength="50">
-  </div>
-
   <!-- ACK BUTTON -->
-  <button class="btn-ack" id="btnAck" onclick="sendAck()" disabled>
+  <button class="btn-ack" id="btnAck" onclick="openAckModal()" disabled>
     <span style="font-size:1.4rem">🔵</span>
     <span>รับทราบ — กำลังดำเนินการ</span>
   </button>
@@ -376,6 +383,23 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#03060d;color:#ddeeff;mi
 
 </div>
 
+<!-- ACK CONFIRM MODAL -->
+<div class="ack-overlay" id="ackOverlay">
+  <div class="ack-box">
+    <div class="ack-ico">🔵</div>
+    <div class="ack-title">รับทราบ</div>
+    <div class="ack-desc" id="ackModalDesc">กำลังดำเนินการแก้ไข</div>
+    <div class="ack-name-wrap">
+      <label class="ack-name-lbl">▸ ชื่อผู้รับทราบ · ACKER (บังคับ)</label>
+      <input class="ack-name-inp" id="ackNameInp" type="text" placeholder="ระบุชื่อก่อนยืนยัน..." maxlength="50" oninput="checkAckName()">
+    </div>
+    <div class="ack-btns">
+      <button class="ack-byes" id="btnAckConfirm" onclick="sendAck()" disabled>✔ ยืนยัน</button>
+      <button class="ack-bno" onclick="closeAckModal()">✕ ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
 <script>
 var CFG = {
   apiKey:"AIzaSyCsuwwUKEw01sXhVHt-1WcF94F5kNMiCOI",
@@ -426,15 +450,6 @@ window.addEventListener('DOMContentLoaded', function(){
   var n=new Date();
   document.getElementById('clk').textContent=n.toLocaleTimeString('th-TH',{hour12:false});
   document.getElementById('dt').textContent=n.toLocaleDateString('th-TH',{day:'2-digit',month:'long',year:'numeric'});
-
-  // โหลดชื่อผู้รับทราบจาก localStorage
-  try{
-    var savedAcker = localStorage.getItem('andon_acker');
-    if(savedAcker) document.getElementById('ackerNameInp').value = savedAcker;
-  }catch(e){}
-  document.getElementById('ackerNameInp').addEventListener('input', function(){
-    try{ localStorage.setItem('andon_acker', this.value); }catch(e){}
-  });
 
   log('s','⚙ CONTROL ROOM ONLINE · รอสัญญาณจากหน้างาน...');
 
@@ -549,7 +564,7 @@ function onChanged(d){
   log(t.col,'['+d.station+'] '+t.label+' — '+t.sub);
 
   // ── แจ้งเตือน Telegram ──
-  if(curType==='call' || curType==='breakdown' || curType==='acknowledged'){
+  if(curType==='call' || curType==='breakdown' || curType==='acknowledged' || curType==='normal'){
     sendTelegram(curType, d);
   }
 
@@ -866,10 +881,12 @@ function sendTelegram(type, data){
   var typeLabel = type==='breakdown'   ? '🚨 เครื่องเสีย'
                 : type==='call'        ? '📞 เรียกหัวหน้า'
                 : type==='acknowledged'? '🔵 รับทราบแล้ว'
+                : type==='normal'      ? '✅ แก้ไขแล้ว · RESET'
                 : '✅ กลับปกติ';
   var lineName   = data.name || data.station || '—';
   var detail     = data.detail   ? '\nรายละเอียด: '+data.detail : '';
-  var reporter   = data.reporter && data.reporter!=='ไม่ระบุ' ? '\nผู้แจ้ง: '+data.reporter : '';
+  var reporterLbl = type==='normal' ? 'ผู้แก้ไข' : 'ผู้แจ้ง';
+  var reporter   = data.reporter && data.reporter!=='ไม่ระบุ' ? '\n'+reporterLbl+': '+data.reporter : '';
   var ackedByTxt = data.ackedBy  && type==='acknowledged'     ? '\nผู้รับทราบ: '+data.ackedBy  : '';
   var now        = new Date().toLocaleTimeString('th-TH',{hour12:false});
   var msg = typeLabel+'\n\nไลน์: '+lineName+detail+reporter+ackedByTxt+'\nเวลา: '+now;
@@ -880,11 +897,39 @@ function sendTelegram(type, data){
     body:JSON.stringify({chat_id:TG_CHAT, text:msg})
   }).catch(function(e){ console.log('Telegram error:',e); });
 }
-function sendAck(){
+function openAckModal(){
   if(curType!=='call' && curType!=='breakdown') return;
-  var path      = activeStation==='S1'?'andon/station01':'andon/station02';
-  var sname     = activeStation==='S1'?'Base Coat / Clear Coat':'New Primer';
-  var ackerName = document.getElementById('ackerNameInp').value.trim() || 'ห้องควบคุม';
+  var sname = activeStation==='S1'?'Base Coat / Clear Coat':'New Primer';
+  document.getElementById('ackModalDesc').textContent = 'รับทราบปัญหา · '+sname;
+  var saved = '';
+  try{ saved = localStorage.getItem('andon_acker') || ''; }catch(e){}
+  document.getElementById('ackNameInp').value = saved;
+  document.getElementById('btnAckConfirm').disabled = !saved.trim();
+  document.getElementById('ackOverlay').classList.add('show');
+  setTimeout(function(){
+    var inp = document.getElementById('ackNameInp');
+    if(!inp.value.trim()) inp.focus();
+  }, 300);
+}
+function closeAckModal(){
+  document.getElementById('ackOverlay').classList.remove('show');
+}
+function checkAckName(){
+  var v = document.getElementById('ackNameInp').value.trim();
+  document.getElementById('btnAckConfirm').disabled = !v;
+}
+document.getElementById('ackOverlay').addEventListener('click', function(e){
+  if(e.target===this) closeAckModal();
+});
+
+function sendAck(){
+  var ackerName = document.getElementById('ackNameInp').value.trim();
+  if(!ackerName){ document.getElementById('ackNameInp').focus(); return; }
+  try{ localStorage.setItem('andon_acker', ackerName); }catch(e){}
+  closeAckModal();
+  if(curType!=='call' && curType!=='breakdown') return;
+  var path  = activeStation==='S1'?'andon/station01':'andon/station02';
+  var sname = activeStation==='S1'?'Base Coat / Clear Coat':'New Primer';
   var pl = {
     type:'acknowledged', station:activeStation,
     name:sname, timestamp:Date.now(), ackedBy: ackerName
