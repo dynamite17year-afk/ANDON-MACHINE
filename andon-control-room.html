@@ -182,6 +182,12 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#03060d;color:#ddeeff;mi
 .dt-empty{text-align:center;padding:16px;font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#1e3448;letter-spacing:2px}
 .dt-wrap{max-height:220px;overflow-y:auto}
 .dt-wrap::-webkit-scrollbar{width:3px}.dt-wrap::-webkit-scrollbar-thumb{background:#0e1c2e;border-radius:2px}
+/* ACKER NAME INPUT */
+.acker-name-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;background:#040a14;border:1px solid #0e1c2e;border-radius:8px;padding:9px 12px}
+.acker-name-lbl{font-family:'Share Tech Mono',monospace;font-size:.56rem;color:#3a6080;letter-spacing:2px;white-space:nowrap}
+.acker-name-inp{flex:1;background:transparent;border:none;border-bottom:1px solid #1a3048;padding:2px 6px;color:#00b4ff;font-family:'Noto Sans Thai',sans-serif;font-size:.92rem;outline:none;transition:border-color .2s;font-weight:600}
+.acker-name-inp:focus{border-bottom-color:#00b4ff}
+.acker-name-inp::placeholder{color:#2a4060;font-size:.82rem;font-weight:400}
 </style>
 </head>
 <body>
@@ -252,6 +258,12 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#03060d;color:#ddeeff;mi
       <div class="lamp-orb">🔵</div>
       <div class="lamp-lbl">ACK<br>รับทราบ</div>
     </div>
+  </div>
+
+  <!-- ชื่อผู้รับทราบ -->
+  <div class="acker-name-row">
+    <div class="acker-name-lbl">👤 ผู้รับทราบ:</div>
+    <input class="acker-name-inp" id="ackerNameInp" type="text" placeholder="ระบุชื่อก่อนกด รับทราบ..." maxlength="50">
   </div>
 
   <!-- ACK BUTTON -->
@@ -336,13 +348,15 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#03060d;color:#ddeeff;mi
             <th>ไลน์</th>
             <th>ประเภท</th>
             <th>รายละเอียด</th>
+            <th>ผู้แจ้ง</th>
+            <th>ผู้รับทราบ</th>
             <th>เวลาเริ่ม</th>
             <th>เวลาสิ้นสุด</th>
             <th>ระยะเวลา</th>
           </tr>
         </thead>
         <tbody id="dtBody">
-          <tr><td colspan="7" class="dt-empty">ยังไม่มีการบันทึก</td></tr>
+          <tr><td colspan="9" class="dt-empty">ยังไม่มีการบันทึก</td></tr>
         </tbody>
       </table>
     </div>
@@ -412,6 +426,15 @@ window.addEventListener('DOMContentLoaded', function(){
   var n=new Date();
   document.getElementById('clk').textContent=n.toLocaleTimeString('th-TH',{hour12:false});
   document.getElementById('dt').textContent=n.toLocaleDateString('th-TH',{day:'2-digit',month:'long',year:'numeric'});
+
+  // โหลดชื่อผู้รับทราบจาก localStorage
+  try{
+    var savedAcker = localStorage.getItem('andon_acker');
+    if(savedAcker) document.getElementById('ackerNameInp').value = savedAcker;
+  }catch(e){}
+  document.getElementById('ackerNameInp').addEventListener('input', function(){
+    try{ localStorage.setItem('andon_acker', this.value); }catch(e){}
+  });
 
   log('s','⚙ CONTROL ROOM ONLINE · รอสัญญาณจากหน้างาน...');
 
@@ -496,18 +519,25 @@ function onChanged(d){
   // เปิด entry ใหม่เฉพาะ call/breakdown และยังไม่มี entry เปิดอยู่
   if((curType==='call' || curType==='breakdown') && !openEntry){
     openEntry = {
-      no:      downtimeLog.length + 1,
-      type:    curType,
-      station: d.station || d.name || '—',
-      detail:  d.detail  || '',
-      startTs: d.timestamp || Date.now(),
-      endTs:   null
+      no:       downtimeLog.length + 1,
+      type:     curType,
+      station:  d.station || d.name || '—',
+      detail:   d.detail  || '',
+      reporter: d.reporter || '',
+      ackedBy:  '',
+      startTs:  d.timestamp || Date.now(),
+      endTs:    null
     };
   }
   // มี entry เปิดอยู่แล้ว อัปเดต type/detail
   if(openEntry && (curType==='call' || curType==='breakdown')){
     openEntry.type   = curType;
     openEntry.detail = d.detail || openEntry.detail || '';
+    if(!openEntry.reporter && d.reporter) openEntry.reporter = d.reporter;
+  }
+  // บันทึกชื่อผู้รับทราบเมื่อมีการ acknowledge
+  if(openEntry && curType==='acknowledged' && d.ackedBy){
+    openEntry.ackedBy = d.ackedBy;
   }
   renderDowntime();
 
@@ -651,22 +681,26 @@ function renderDowntime(){
   if(openEntry) all.push(openEntry);
 
   if(all.length===0){
-    tbody.innerHTML='<tr><td colspan="7" class="dt-empty">ยังไม่มีการบันทึก</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" class="dt-empty">ยังไม่มีการบันทึก</td></tr>';
     return;
   }
 
   var rows = all.slice().reverse().map(function(e, idx){
-    var isOpen    = !e.endTs;
-    var typeLabel = e.type==='breakdown'?'เครื่องเสีย':'เรียกหัวหน้า';
-    var typeCls   = e.type==='breakdown'?'breakdown':'call';
-    var no        = all.length - idx;
-    var detailTxt = e.detail ? ('<span style="color:#88bbcc">'+e.detail+'</span>') : '<span style="color:#2a4a60">—</span>';
-    var stationTxt= e.station || '—';
+    var isOpen      = !e.endTs;
+    var typeLabel   = e.type==='breakdown'?'เครื่องเสีย':'เรียกหัวหน้า';
+    var typeCls     = e.type==='breakdown'?'breakdown':'call';
+    var no          = all.length - idx;
+    var detailTxt   = e.detail   ? ('<span style="color:#88bbcc">'+e.detail+'</span>')   : '<span style="color:#2a4a60">—</span>';
+    var reporterTxt = e.reporter ? ('<span style="color:#aaccdd">'+e.reporter+'</span>') : '<span style="color:#2a4a60">—</span>';
+    var ackedTxt    = e.ackedBy  ? ('<span style="color:#00b4ff">'+e.ackedBy+'</span>')  : (isOpen ? '<span style="color:#2a4a60">—</span>' : '<span style="color:#2a4a60">—</span>');
+    var stationTxt  = e.station  || '—';
     return '<tr>'+
       '<td style="color:#4a7090;text-align:center">'+no+'</td>'+
       '<td style="color:#6a9ab8;font-size:.58rem">'+stationTxt+'</td>'+
       '<td><span class="dt-type '+typeCls+'">'+typeLabel+'</span></td>'+
       '<td>'+detailTxt+'</td>'+
+      '<td>'+reporterTxt+'</td>'+
+      '<td>'+ackedTxt+'</td>'+
       '<td class="dt-start">'+fmt(e.startTs)+'</td>'+
       '<td class="dt-end'+(isOpen?' ongoing':'')+'">'+( isOpen ? '⏳ กำลังซ่อม...' : fmt(e.endTs) )+'</td>'+
       '<td class="dt-dur'+(isOpen?' ongoing':'')+'">'+durStr(e.startTs, e.endTs)+'</td>'+
@@ -692,7 +726,7 @@ function exportCSV(){
   if(all.length===0){ alert('ยังไม่มีข้อมูลให้ export ครับ'); return; }
 
   var BOM = '\uFEFF'; // รองรับภาษาไทยใน Excel
-  var headers = ['#','ไลน์','ประเภท','รายละเอียด','เวลาเริ่ม','เวลาสิ้นสุด','ระยะเวลา(วินาที)','ระยะเวลา'];
+  var headers = ['#','ไลน์','ประเภท','รายละเอียด','ผู้แจ้ง','ผู้รับทราบ','เวลาเริ่ม','เวลาสิ้นสุด','ระยะเวลา(วินาที)','ระยะเวลา'];
   var rows = all.map(function(e,i){
     var typeLabel = e.type==='breakdown'?'เครื่องเสีย':'เรียกหัวหน้า';
     var endTime   = e.endTs ? fmt(e.endTs) : 'กำลังดำเนินการ';
@@ -703,6 +737,8 @@ function exportCSV(){
       '"'+(e.station||'')+ '"',
       '"'+typeLabel+'"',
       '"'+(e.detail||'')+'"',
+      '"'+(e.reporter||'')+'"',
+      '"'+(e.ackedBy||'')+'"',
       '"'+fmt(e.startTs)+'"',
       '"'+endTime+'"',
       durSec,
@@ -827,14 +863,16 @@ var TG_TOKEN  = '8829863739:AAGWi6-uZq8ybe_KAXKCl9y2jzrP1Mr_a4s';
 var TG_CHAT   = '-1003977538231';
 
 function sendTelegram(type, data){
-  var typeLabel = type==='breakdown' ? '🚨 เครื่องเสีย'
-                : type==='call'      ? '📞 เรียกหัวหน้า'
-                : type==='acknowledged' ? '🔵 รับทราบแล้ว'
+  var typeLabel = type==='breakdown'   ? '🚨 เครื่องเสีย'
+                : type==='call'        ? '📞 เรียกหัวหน้า'
+                : type==='acknowledged'? '🔵 รับทราบแล้ว'
                 : '✅ กลับปกติ';
-  var lineName  = data.name || data.station || '—';
-  var detail    = data.detail ? '\nรายละเอียด: '+data.detail : '';
-  var now       = new Date().toLocaleTimeString('th-TH',{hour12:false});
-  var msg = typeLabel+'\n\nไลน์: '+lineName+detail+'\nเวลา: '+now;
+  var lineName   = data.name || data.station || '—';
+  var detail     = data.detail   ? '\nรายละเอียด: '+data.detail : '';
+  var reporter   = data.reporter && data.reporter!=='ไม่ระบุ' ? '\nผู้แจ้ง: '+data.reporter : '';
+  var ackedByTxt = data.ackedBy  && type==='acknowledged'     ? '\nผู้รับทราบ: '+data.ackedBy  : '';
+  var now        = new Date().toLocaleTimeString('th-TH',{hour12:false});
+  var msg = typeLabel+'\n\nไลน์: '+lineName+detail+reporter+ackedByTxt+'\nเวลา: '+now;
 
   fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage', {
     method:'POST',
@@ -844,14 +882,15 @@ function sendTelegram(type, data){
 }
 function sendAck(){
   if(curType!=='call' && curType!=='breakdown') return;
-  var path  = activeStation==='S1'?'andon/station01':'andon/station02';
-  var sname = activeStation==='S1'?'Base Coat / Clear Coat':'New Primer';
+  var path      = activeStation==='S1'?'andon/station01':'andon/station02';
+  var sname     = activeStation==='S1'?'Base Coat / Clear Coat':'New Primer';
+  var ackerName = document.getElementById('ackerNameInp').value.trim() || 'ห้องควบคุม';
   var pl = {
     type:'acknowledged', station:activeStation,
-    name:sname, timestamp:Date.now(), ackedBy:'CONTROL ROOM'
+    name:sname, timestamp:Date.now(), ackedBy: ackerName
   };
   firebase.database().ref(path).set(pl).then(function(){
-    log('b','🔵 รับทราบ ['+sname+'] — แจ้งหน้างานเรียบร้อย');
+    log('b','🔵 รับทราบ ['+sname+'] โดย: '+ackerName);
   }).catch(function(e){ log('s','⚡ ส่งรับทราบไม่ได้: '+e.message); });
 }
 
