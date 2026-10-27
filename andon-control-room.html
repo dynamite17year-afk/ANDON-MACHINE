@@ -837,9 +837,23 @@ function sendAck(){
     type:'acknowledged', station:activeStation,
     name:sname, timestamp:Date.now(), ackedBy: ackerName
   };
+  saveHistory(pl, activeStation==='S1'?1:2);
   firebase.database().ref(path).set(pl).then(function(){
     log('b','🔵 รับทราบ ['+sname+'] โดย: '+ackerName);
   }).catch(function(e){ log('s','⚡ ส่งรับทราบไม่ได้: '+e.message); });
+}
+
+// ── HISTORY (เก็บประวัติทุกเหตุการณ์ไว้ทำรายงาน/Monitor) ─────
+function saveHistory(pl, lineNo){
+  try{
+    var d = new Date(pl.timestamp);
+    var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var ev = {
+      ts: pl.timestamp, line: lineNo, lineName: pl.name, type: pl.type,
+      detail: '', reporter: '', ackedBy: pl.ackedBy || ''
+    };
+    firebase.database().ref('andon/history/'+key).push(ev).catch(function(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); });
+  }catch(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); }
 }
 
 // ── RENDER STATION CARDS TIMER ─────────────

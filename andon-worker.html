@@ -338,6 +338,7 @@ function doSend(){
   stateTs  = pl.timestamp;
   render();
 
+  saveHistory(pl, activeLine);
   if(dbRef){
     dbRef.set(pl).then(function(){
       var msg = realType==='normal' ? 'แก้ไขแล้ว' : TYPES[realType].label;
@@ -350,6 +351,19 @@ function doSend(){
 
   if(navigator.vibrate) navigator.vibrate(realType==='normal'?50:[200,80,200]);
   pending = null;
+}
+
+// ── HISTORY (เก็บประวัติทุกเหตุการณ์ไว้ทำรายงาน/Monitor) ─────
+function saveHistory(pl, lineNo){
+  try{
+    var d = new Date(pl.timestamp);
+    var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var ev = {
+      ts: pl.timestamp, line: lineNo, lineName: pl.name, type: pl.type,
+      detail: pl.detail || '', reporter: pl.reporter || '', ackedBy: ''
+    };
+    firebase.database().ref('andon/history/'+key).push(ev).catch(function(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); });
+  }catch(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); }
 }
 
 // ── RENDER ────────────────────────────────────
