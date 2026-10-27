@@ -403,7 +403,7 @@ function onChanged(d){
       no:       downtimeLog.length + 1,
       type:     curType,
       station:  d.station || d.name || '—',
-      detail:   d.detail  || '',
+      detail:   ((d.cause?d.cause:'') + (d.cause&&d.detail?' · ':'') + (d.detail||'')),
       reporter: d.reporter || '',
       ackedBy:  '',
       startTs:  d.timestamp || Date.now(),
@@ -413,7 +413,8 @@ function onChanged(d){
   // มี entry เปิดอยู่แล้ว อัปเดต type/detail
   if(openEntry && (curType==='call' || curType==='breakdown')){
     openEntry.type   = curType;
-    openEntry.detail = d.detail || openEntry.detail || '';
+    var _dt = ((d.cause?d.cause:'') + (d.cause&&d.detail?' · ':'') + (d.detail||''));
+    openEntry.detail = _dt || openEntry.detail || '';
     if(!openEntry.reporter && d.reporter) openEntry.reporter = d.reporter;
   }
   // บันทึกชื่อผู้รับทราบเมื่อมีการ acknowledge
@@ -787,12 +788,13 @@ function sendTelegram(type, data){
                 : type==='normal'      ? '✅ แก้ไขแล้ว · RESET'
                 : '✅ กลับปกติ';
   var lineName   = data.name || data.station || '—';
+  var cause      = data.cause    ? '\nสาเหตุ: '+data.cause : '';
   var detail     = data.detail   ? '\nรายละเอียด: '+data.detail : '';
   var reporterLbl = type==='normal' ? 'ผู้แก้ไข' : 'ผู้แจ้ง';
   var reporter   = data.reporter && data.reporter!=='ไม่ระบุ' ? '\n'+reporterLbl+': '+data.reporter : '';
   var ackedByTxt = data.ackedBy  && type==='acknowledged'     ? '\nผู้รับทราบ: '+data.ackedBy  : '';
   var now        = new Date().toLocaleTimeString('th-TH',{hour12:false});
-  var msg = typeLabel+'\n\nไลน์: '+lineName+detail+reporter+ackedByTxt+'\nเวลา: '+now;
+  var msg = typeLabel+'\n\nไลน์: '+lineName+cause+detail+reporter+ackedByTxt+'\nเวลา: '+now;
 
   fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage', {
     method:'POST',

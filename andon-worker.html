@@ -105,14 +105,20 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#05080f;color:#cce0f0;mi
 .overlay.show{opacity:1;pointer-events:all}
 .cf-box{background:#0a0f1a;border:1px solid #142030;border-radius:16px;padding:28px 22px;width:88%;max-width:340px;text-align:center;transform:scale(.9);transition:transform .2s}
 .overlay.show .cf-box{transform:scale(1)}
-.cf-ico{font-size:3.2rem;margin-bottom:12px}
+.cf-ico{font-size:2.4rem;margin-bottom:6px}
 .cf-title{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:4px;margin-bottom:8px;color:#cce0f0}
 .cf-desc{font-size:.86rem;color:#4a6a80;margin-bottom:22px;line-height:1.7;white-space:pre-line}
 .cf-btns{display:flex;gap:10px}
 /* Detail input */
+.cause-lbl{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#dceaf4;letter-spacing:2px;margin-bottom:6px;display:block}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{font-family:'Noto Sans Thai',sans-serif;font-size:.78rem;font-weight:600;color:#dceaf4;background:#06101c;border:1.5px solid #1e3a52;border-radius:20px;padding:6px 11px;cursor:pointer;transition:all .15s;line-height:1.2}
+.chip:active{transform:scale(.95)}
+.chip.sel{color:#fff;background:rgba(255,23,68,.18);border-color:#ff1744;box-shadow:0 0 10px rgba(255,23,68,.35)}
+.chips.call .chip.sel{background:rgba(255,214,0,.16);border-color:#ffd600;box-shadow:0 0 10px rgba(255,214,0,.3)}
 .detail-wrap{margin-bottom:16px;text-align:left}
 .detail-lbl{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#5a8aaa;letter-spacing:2px;margin-bottom:6px;display:block}
-.detail-inp{width:100%;background:#030810;border:1px solid #1e3a52;border-radius:8px;padding:10px 12px;color:#ddeeff;font-family:'Noto Sans Thai',sans-serif;font-size:.9rem;resize:none;height:80px;outline:none;transition:border-color .2s;line-height:1.6}
+.detail-inp{width:100%;background:#030810;border:1px solid #1e3a52;border-radius:8px;padding:10px 12px;color:#ddeeff;font-family:'Noto Sans Thai',sans-serif;font-size:.9rem;resize:none;height:56px;outline:none;transition:border-color .2s;line-height:1.6}
 .detail-inp:focus{border-color:#00b4ff;box-shadow:0 0 0 2px rgba(0,180,255,.15)}
 .detail-inp::placeholder{color:#2a4a60;font-size:.82rem}
 .byes{flex:1;padding:14px;border:none;border-radius:8px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;background:#0a2010;color:#00e676;border:1px solid #1a4a20;transition:all .12s}
@@ -192,8 +198,10 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#05080f;color:#cce0f0;mi
       <input class="cf-name-inp" id="cfNameInp" type="text" placeholder="ระบุชื่อก่อนยืนยัน..." maxlength="50" oninput="checkNameInput()">
     </div>
     <div class="detail-wrap" id="detailWrap">
-      <label class="detail-lbl">▸ รายละเอียดปัญหา (ไม่บังคับ)</label>
-      <textarea class="detail-inp" id="detailInp" placeholder="เช่น: มอเตอร์ร้อน, สายพานหลุด, น้ำยาหมด..." maxlength="200"></textarea>
+      <label class="cause-lbl">▸ เลือกสาเหตุ · CAUSE (บังคับ)</label>
+      <div class="chips" id="causeChips"></div>
+      <label class="detail-lbl" id="detailLbl">▸ รายละเอียดเพิ่มเติม (ไม่บังคับ)</label>
+      <textarea class="detail-inp" id="detailInp" placeholder="เช่น: มอเตอร์ร้อนผิดปกติ ฯลฯ" maxlength="200" oninput="checkNameInput()"></textarea>
     </div>
     <div class="cf-btns">
       <button class="byes" id="btnYes" onclick="doSend()" disabled>✔ ยืนยัน</button>
@@ -229,9 +237,42 @@ var CF = {
 var curType='normal', stateTs=Date.now(), pending=null, dbRef=null;
 var activeLine = 1; // 1=Base Coat/Clear Coat, 2=New Primer
 
+var CAUSES = {
+  breakdown:['มอเตอร์ร้อน','สายพานหลุด','เซ็นเซอร์ขัดข้อง','หุ่นยนต์ขัดข้อง','ปืนพ่น / ปั๊มสี','ระบบลม / น้ำ','ไฟฟ้า','น้ำยา / วัตถุดิบหมด','อื่นๆ'],
+  call:     ['ขอความช่วยเหลือ','ปัญหาคุณภาพงาน','วัตถุดิบ / น้ำยา','ความปลอดภัย','อื่นๆ']
+};
+var selectedCause = '';
+
+function renderChips(type){
+  var box = document.getElementById('causeChips');
+  box.className = 'chips ' + (type==='call' ? 'call' : '');
+  box.innerHTML = '';
+  CAUSES[type].forEach(function(c){
+    var el = document.createElement('span');
+    el.className = 'chip'; el.textContent = c;
+    el.onclick = function(){
+      selectedCause = c;
+      Array.prototype.forEach.call(box.children, function(x){ x.classList.toggle('sel', x===el); });
+      updateDetailLabel();
+      checkNameInput();
+    };
+    box.appendChild(el);
+  });
+}
+
+function updateDetailLabel(){
+  var need = (selectedCause==='อื่นๆ');
+  document.getElementById('detailLbl').textContent = need ? '▸ รายละเอียด (บังคับ — ระบุสาเหตุ)' : '▸ รายละเอียดเพิ่มเติม (ไม่บังคับ)';
+}
+
+// ปุ่มยืนยันกดได้เมื่อ: มีชื่อ + (แจ้งปัญหา → เลือกสาเหตุ + ถ้า "อื่นๆ" ต้องกรอกรายละเอียด)
 function checkNameInput(){
-  var v = document.getElementById('cfNameInp').value.trim();
-  document.getElementById('btnYes').disabled = !v;
+  var ok = !!document.getElementById('cfNameInp').value.trim();
+  if(pending==='call' || pending==='breakdown'){
+    if(!selectedCause) ok = false;
+    if(selectedCause==='อื่นๆ' && !document.getElementById('detailInp').value.trim()) ok = false;
+  }
+  document.getElementById('btnYes').disabled = !ok;
 }
 
 // ── INIT ──────────────────────────────────────
@@ -295,11 +336,14 @@ function ask(type){
   var saved = '';
   try{ saved = localStorage.getItem('andon_reporter') || ''; }catch(e){}
   document.getElementById('cfNameInp').value = saved;
-  document.getElementById('btnYes').disabled = !saved.trim();
+  
   // ซ่อน/แสดง detail input
   var showDetail = (type==='call' || type==='breakdown');
   document.getElementById('detailWrap').style.display = showDetail ? 'block' : 'none';
   document.getElementById('detailInp').value = '';
+  selectedCause = '';
+  if(showDetail){ renderChips(type); updateDetailLabel(); }
+  checkNameInput();
   document.getElementById('overlay').classList.add('show');
   setTimeout(function(){
     var inp = document.getElementById('cfNameInp');
@@ -319,6 +363,10 @@ document.getElementById('overlay').addEventListener('click', function(e){
 function doSend(){
   var nameVal = document.getElementById('cfNameInp').value.trim();
   if(!nameVal){ document.getElementById('cfNameInp').focus(); return; }
+  if(pending==='call' || pending==='breakdown'){
+    if(!selectedCause) return;
+    if(selectedCause==='อื่นๆ' && !document.getElementById('detailInp').value.trim()){ document.getElementById('detailInp').focus(); return; }
+  }
   try{ localStorage.setItem('andon_reporter', nameVal); }catch(e){}
   closeOv();
   if(!pending) return;
@@ -329,6 +377,7 @@ function doSend(){
     type:      realType,
     station:   'LINE-'+activeLine,
     name:      lineName,
+    cause:     (realType==='normal') ? '' : selectedCause,
     detail:    detail || '',
     reporter:  nameVal,
     timestamp: Date.now()
@@ -342,6 +391,7 @@ function doSend(){
   if(dbRef){
     dbRef.set(pl).then(function(){
       var msg = realType==='normal' ? 'แก้ไขแล้ว' : TYPES[realType].label;
+      if(pl.cause) msg += ' · '+pl.cause;
       if(detail) msg += ' · '+detail;
       log(TYPES[realType].col,'📤 ส่งแล้ว: '+msg+' ['+nameVal+']');
     }).catch(function(e){ log('s','⚡ ส่งไม่ได้: '+e.message); });
@@ -360,7 +410,7 @@ function saveHistory(pl, lineNo){
     var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     var ev = {
       ts: pl.timestamp, line: lineNo, lineName: pl.name, type: pl.type,
-      detail: pl.detail || '', reporter: pl.reporter || '', ackedBy: ''
+      cause: pl.cause || '', detail: pl.detail || '', reporter: pl.reporter || '', ackedBy: ''
     };
     firebase.database().ref('andon/history/'+key).push(ev).catch(function(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); });
   }catch(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); }
