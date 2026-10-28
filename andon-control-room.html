@@ -390,6 +390,7 @@ window.addEventListener('DOMContentLoaded', function(){
 });
 
 // ── ON STATION CHANGE ────────────────────────
+var tgSeen = {};
 function onStationChange(sid, d){
   var st = stations[sid];
   st.prevType = st.type;
@@ -404,6 +405,16 @@ function onStationChange(sid, d){
     curType  = st.type;
     stateTs  = st.ts;
   }
+
+  // ส่งเฉพาะเหตุการณ์ใหม่จริง — ไม่ส่งตอนเปิดหน้า/รีเฟรช/เชื่อมต่อใหม่ (ข้อมูลล่าสุดที่โหลดมาครั้งแรกหรือซ้ำเดิม)
+  var tgKey = sid+'|'+d.type+'|'+(d.timestamp||'');
+  var tgFirst = !(sid in tgSeen);
+  var tgNew   = !tgFirst && tgSeen[sid]!==tgKey;
+  tgSeen[sid] = tgKey;
+  if(tgNew && (d.type==='call' || d.type==='breakdown' || d.type==='acknowledged' || d.type==='normal')){
+    sendTelegram(d.type, d);
+  }
+
 
   // อัปเดตไฟ station cards
   renderStationCards();
@@ -476,10 +487,6 @@ function onChanged(d){
   log(t.col,'['+d.station+'] '+t.label+' — '+t.sub);
 
   // ── แจ้งเตือน Telegram ──
-  if(curType==='call' || curType==='breakdown' || curType==='acknowledged' || curType==='normal'){
-    sendTelegram(curType, d);
-  }
-
   playSound(curType);
   if(navigator.vibrate && curType==='breakdown') navigator.vibrate([300,100,300]);
   renderAll();
