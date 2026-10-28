@@ -408,22 +408,33 @@ function startApp(){
     var db=firebase.database();
     db.ref('andon/station01').on('value',function(s){ setConn(true); var d=s.val(); if(d&&d.type) live[1]={type:d.type,ts:d.timestamp||Date.now()}; render(); },function(){ setConn(false); });
     db.ref('andon/station02').on('value',function(s){ setConn(true); var d=s.val(); if(d&&d.type) live[2]={type:d.type,ts:d.timestamp||Date.now()}; render(); });
-    // วันแรกที่เริ่มเก็บประวัติ
-    db.ref('andon/events').orderByKey().limitToFirst(1).once('value',function(s){
-      var v=s.val(); firstDay = v? Object.keys(v)[0] : dayKey(new Date()); render();
-    },function(){ firstDay=dayKey(new Date()); });
-    // ประวัติ 8 วัน (วันนี้ติดตามต่อเนื่อง, วันก่อนหน้าอ่านครั้งเดียว)
+    // วันแรกที่เริ่มเก็บประวัติ (ดูทั้งที่เก็บใหม่ andon/events และที่เก็บเดิม andon/history/<วันที่>)
+    var fdRes=[], fdN=0;
+    function fdDone(){ fdN++; if(fdN<2) return; fdRes.sort(); firstDay=fdRes[0]||dayKey(new Date()); render(); }
+    db.ref('andon/events').orderByKey().limitToFirst(1).once('value',function(s){ var v=s.val(); if(v) fdRes.push(Object.keys(v)[0]); fdDone(); },function(){ fdDone(); });
+    db.ref('andon/history').orderByKey().startAt('2000-').limitToFirst(1).once('value',function(s){ var v=s.val(), k=v&&Object.keys(v)[0]; if(k&&/^\d{4}-\d{2}-\d{2}$/.test(k)) fdRes.push(k); fdDone(); },function(){ fdDone(); });
+    // ประวัติ 8 วัน (วันนี้ติดตามต่อเนื่อง, วันก่อนหน้าอ่านครั้งเดียว) รวม 2 ที่เก็บ
+    var src={};
+    function mergeDay(key){
+      var seen={}, arr=[];
+      ['e','l'].forEach(function(t){
+        var v=(src[key]||{})[t]; if(!v) return;
+        Object.keys(v).forEach(function(k){
+          var ev=v[k]; if(!ev||typeof ev!=='object'||typeof ev.ts!=='number'||!ev.type) return;
+          var id=ev.ts+'|'+ev.line+'|'+ev.type; if(seen[id]) return; seen[id]=1; arr.push(ev);
+        });
+      });
+      arr.sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
+      hist[key]=arr; render();
+    }
     for(var i=0;i<DAYS;i++){
       (function(i){
         var d=new Date(); d.setDate(d.getDate()-i);
-        var key=dayKey(d), ref=db.ref('andon/events/'+key);
-        var cb=function(s){
-          var v=s.val(), arr=[];
-          if(v) Object.keys(v).forEach(function(k){ arr.push(v[k]); });
-          arr.sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
-          hist[key]=arr; render();
-        };
-        if(i===0) ref.on('value',cb,function(){}); else ref.once('value',cb,function(){ hist[key]=[]; });
+        var key=dayKey(d); src[key]={e:null,l:null};
+        [['e','andon/events/'+key],['l','andon/history/'+key]].forEach(function(pr){
+          var ref=db.ref(pr[1]), cb=function(s){ src[key][pr[0]]=s.val(); mergeDay(key); };
+          if(i===0) ref.on('value',cb,function(){ mergeDay(key); }); else ref.once('value',cb,function(){ mergeDay(key); });
+        });
       })(i);
     }
     setConn(true);

@@ -388,11 +388,17 @@ window.addEventListener('DOMContentLoaded', function(){
     // โหลดประวัติวันนี้จาก Firebase ก่อน (กัน log/สถิติหายตอนรีเฟรช) แล้วค่อยฟังสถานะสด
     var hKey=dayKey(new Date());
     var hTimer=setTimeout(attachLive,4000);
-    db.ref('andon/events/'+hKey).once('value',function(snap){
+    // อ่านทั้งที่เก็บใหม่ (andon/events) และที่เคยบันทึกไว้เดิม (andon/history/<วันที่>) แล้วรวมกัน
+    var hGot={e:null,l:null}, hDone=0;
+    function hFinish(){
+      hDone++; if(hDone<2) return;
       clearTimeout(hTimer);
-      try{ restoreHistory(snap.val()); }catch(e){ log('s','⚡ โหลดประวัติไม่ได้: '+e.message); }
+      try{ restoreHistory(mergeEvents(hGot.e,hGot.l)); }catch(e){ log('s','⚡ โหลดประวัติไม่ได้: '+e.message); }
       attachLive();
-    },function(e){ clearTimeout(hTimer); log('s','⚡ อ่านประวัติไม่ได้: '+e.message); attachLive(); });
+    }
+    db.ref('andon/events/'+hKey).once('value',function(snap){ hGot.e=snap.val(); hFinish(); },
+      function(e){ log('s','⚡ อ่านประวัติไม่ได้: '+e.message); hFinish(); });
+    db.ref('andon/history/'+hKey).once('value',function(snap){ hGot.l=snap.val(); hFinish(); },function(){ hFinish(); });
 
     setConn(true);
   } catch(e){
@@ -402,6 +408,19 @@ window.addEventListener('DOMContentLoaded', function(){
 });
 
 
+
+// รวมเหตุการณ์จากหลายที่เก็บ (ตัดซ้ำด้วย เวลา+ไลน์+ประเภท) และข้ามรายการที่ไม่ใช่รูปแบบเหตุการณ์
+function mergeEvents(){
+  var seen={}, out={}, n=0;
+  for(var i=0;i<arguments.length;i++){
+    var v=arguments[i]; if(!v) continue;
+    Object.keys(v).forEach(function(k){
+      var ev=v[k]; if(!ev||typeof ev!=='object'||typeof ev.ts!=='number'||!ev.type) return;
+      var id=ev.ts+'|'+ev.line+'|'+ev.type; if(seen[id]) return; seen[id]=1; out['e'+(n++)]=ev;
+    });
+  }
+  return out;
+}
 // ── RESTORE HISTORY (โหลดประวัติของวันนี้กลับมาหลังรีเฟรช) ──
 function dayKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function getClr(k){ try{ return +localStorage.getItem(k)||0; }catch(e){ return 0; } }
