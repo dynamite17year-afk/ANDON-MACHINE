@@ -182,6 +182,25 @@ body{background:#030710;color:var(--tx);font-family:'Noto Sans Thai',sans-serif;
 .kpi .v{font-size:2rem!important}
 .tnow .t{font-size:1rem!important}
 .monbtn{letter-spacing:3px!important;font-size:.95rem!important}
+/* BREAKDOWN SIREN */
+.stile.breakdown{overflow:hidden;border-radius:2cqw}
+.stile.breakdown .st-ico{font-size:0;width:11cqw;height:11cqw}
+.stile.breakdown .st-ico::before{content:'';position:absolute;inset:-34%;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 0deg,rgba(255,40,30,.95) 0deg,rgba(255,40,30,0) 38deg,rgba(255,40,30,0) 180deg,rgba(255,40,30,.95) 180deg,rgba(255,40,30,0) 218deg,rgba(255,40,30,0) 360deg);
+  -webkit-mask:radial-gradient(circle,transparent 0,transparent 22%,#000 26%,#000 40%,transparent 70%);mask:radial-gradient(circle,transparent 0,transparent 22%,#000 26%,#000 40%,transparent 70%);
+  animation:sirenSpin .9s linear infinite}
+.stile.breakdown .st-ico::after{content:'';position:absolute;left:50%;top:50%;width:46%;height:56%;transform:translate(-50%,-52%);
+  border-radius:48% 48% 10% 10%/62% 62% 10% 10%;
+  background:linear-gradient(#4a4f58,#1c1f26) bottom/118% 20% no-repeat,radial-gradient(circle at 38% 30%,#ffd0c8 0,#ff4a3a 28%,#d4141c 62%,#7d0610 100%);
+  box-shadow:0 0 3cqw 1cqw rgba(255,40,30,.9);animation:sirenPulse .45s ease-in-out infinite alternate}
+.stile.breakdown::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:2cqw;
+  box-shadow:inset 0 0 5cqw 0 rgba(255,23,68,.65);animation:sirenGlow .9s ease-in-out infinite alternate}
+.stile.breakdown .st-txt{animation:sirenTxt .9s ease-in-out infinite alternate}
+@keyframes sirenSpin{to{transform:rotate(360deg)}}
+@keyframes sirenPulse{from{filter:brightness(.8);box-shadow:0 0 1.5cqw .5cqw rgba(255,40,30,.6)}to{filter:brightness(1.25);box-shadow:0 0 3.5cqw 1.4cqw rgba(255,40,30,1)}}
+@keyframes sirenGlow{from{opacity:.25}to{opacity:1}}
+@keyframes sirenTxt{from{opacity:.7}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.stile.breakdown .st-ico::before,.stile.breakdown .st-ico::after,.stile.breakdown::after,.stile.breakdown .st-txt{animation:none}}
 </style>
 </head>
 <body>
