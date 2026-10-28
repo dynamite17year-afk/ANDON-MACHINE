@@ -409,14 +409,14 @@ function startApp(){
     db.ref('andon/station01').on('value',function(s){ setConn(true); var d=s.val(); if(d&&d.type) live[1]={type:d.type,ts:d.timestamp||Date.now()}; render(); },function(){ setConn(false); });
     db.ref('andon/station02').on('value',function(s){ setConn(true); var d=s.val(); if(d&&d.type) live[2]={type:d.type,ts:d.timestamp||Date.now()}; render(); });
     // วันแรกที่เริ่มเก็บประวัติ
-    db.ref('andon/history').orderByKey().limitToFirst(1).once('value',function(s){
+    db.ref('andon/events').orderByKey().limitToFirst(1).once('value',function(s){
       var v=s.val(); firstDay = v? Object.keys(v)[0] : dayKey(new Date()); render();
     },function(){ firstDay=dayKey(new Date()); });
     // ประวัติ 8 วัน (วันนี้ติดตามต่อเนื่อง, วันก่อนหน้าอ่านครั้งเดียว)
     for(var i=0;i<DAYS;i++){
       (function(i){
         var d=new Date(); d.setDate(d.getDate()-i);
-        var key=dayKey(d), ref=db.ref('andon/history/'+key);
+        var key=dayKey(d), ref=db.ref('andon/events/'+key);
         var cb=function(s){
           var v=s.val(), arr=[];
           if(v) Object.keys(v).forEach(function(k){ arr.push(v[k]); });

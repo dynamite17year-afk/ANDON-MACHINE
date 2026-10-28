@@ -388,7 +388,7 @@ window.addEventListener('DOMContentLoaded', function(){
     // โหลดประวัติวันนี้จาก Firebase ก่อน (กัน log/สถิติหายตอนรีเฟรช) แล้วค่อยฟังสถานะสด
     var hKey=dayKey(new Date());
     var hTimer=setTimeout(attachLive,4000);
-    db.ref('andon/history/'+hKey).once('value',function(snap){
+    db.ref('andon/events/'+hKey).once('value',function(snap){
       clearTimeout(hTimer);
       try{ restoreHistory(snap.val()); }catch(e){ log('s','⚡ โหลดประวัติไม่ได้: '+e.message); }
       attachLive();
@@ -1019,7 +1019,7 @@ function saveHistory(pl, lineNo){
       ts: pl.timestamp, line: lineNo, lineName: pl.name, type: pl.type,
       detail: '', reporter: '', ackedBy: pl.ackedBy || ''
     };
-    firebase.database().ref('andon/history/'+key).push(ev).catch(function(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); });
+    firebase.database().ref('andon/events/'+key).push(ev).catch(function(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); });
   }catch(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); }
 }
 

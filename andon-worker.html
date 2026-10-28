@@ -433,7 +433,7 @@ function saveHistory(pl, lineNo){
       ts: pl.timestamp, line: lineNo, lineName: pl.name, type: pl.type,
       cause: pl.cause || '', detail: pl.detail || '', reporter: pl.reporter || '', ackedBy: ''
     };
-    firebase.database().ref('andon/history/'+key).push(ev).catch(function(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); });
+    firebase.database().ref('andon/events/'+key).push(ev).catch(function(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); });
   }catch(e){ log('s','⚡ บันทึกประวัติไม่ได้: '+e.message); }
 }
 
