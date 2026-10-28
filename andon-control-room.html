@@ -768,31 +768,67 @@ function beep(f,d){
   o.start(); o.stop(audioCtx.currentTime+d);
 }
 
+// ── เสียงแจ้งเตือน (ออกแบบให้ได้ยินและต้องรีบ action) ──
+var sndOut=null, alarmStart=0, alarmNext=0;
+function getOut(){
+  if(sndOut||!audioCtx) return sndOut;
+  var comp=audioCtx.createDynamicsCompressor();
+  comp.threshold.value=-18; comp.ratio.value=8; comp.attack.value=.003; comp.release.value=.1;
+  var g=audioCtx.createGain(); g.gain.value=.9;
+  g.connect(comp); comp.connect(audioCtx.destination);
+  sndOut=g; return sndOut;
+}
+// เล่นโทนเดียว (type, ความถี่เริ่ม→จบ, เวลาเริ่ม, ความยาว, ความดัง)
+function tn(type,f0,f1,t0,d,vol){
+  var o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type; o.frequency.setValueAtTime(f0,t0);
+  if(f1!==f0) o.frequency.linearRampToValueAtTime(f1,t0+d);
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.linearRampToValueAtTime(vol,t0+.01);
+  g.gain.setValueAtTime(vol,t0+Math.max(.011,d-.03));
+  g.gain.linearRampToValueAtTime(0.0001,t0+d);
+  o.connect(g); g.connect(getOut());
+  o.start(t0); o.stop(t0+d+.02);
+}
+// เครื่องเสีย: หวอสูงขึ้น 3 ครั้ง + ปี๊บถี่ 3 ครั้ง (เร็วและดังขึ้นถ้าไม่มีใครรับทราบเกิน 30 วินาที)
+function cycleBreakdown(fast){
+  var t=audioCtx.currentTime+.02, d=fast?.26:.33, v=fast?.55:.42, i;
+  for(i=0;i<3;i++){
+    tn('sawtooth',700,1500,t,d,v); tn('sawtooth',708,1518,t,d,v); tn('square',350,750,t,d,v*.5);
+    t+=d;
+  }
+  t+=.08;
+  for(i=0;i<3;i++){ tn('square',1760,1760,t,.09,v*1.1); t+=.16; }
+}
+// เรียกหัวหน้า: ปี๊บ-ปี๊บ-ปี๊บยาว
+function cycleCall(){
+  var t=audioCtx.currentTime+.02;
+  tn('square',1000,1000,t,.12,.4); tn('square',1000,1000,t+.2,.12,.4); tn('square',1250,1250,t+.4,.2,.4);
+}
+// รับทราบแล้ว: ติ๊งต่องเบาๆ
+function cycleAck(){
+  var t=audioCtx.currentTime+.02;
+  tn('sine',880,880,t,.35,.3); tn('sine',660,660,t+.35,.45,.3);
+}
+
 function playSound(type){
   clearInterval(beepIv); beepIv=null;
-  if(type==='breakdown'){
-    // Breakdown: เสียงน่ารำคาญ — สลับความถี่ถี่มาก 3 ระดับ
-    var bdStep=0;
-    beepIv=setInterval(function(){
-      var freqs=[880,660,1100];
-      beep(freqs[bdStep%3],.06);
-      bdStep++;
-    },200);
-  } else if(type==='call'){
-    // Call: ดังต่อเนื่อง 2 โน้ตสลับ
-    beepIv=setInterval(function(){
-      beep(440,.15);
-      setTimeout(function(){ beep(380,.15); },250);
-    },900);
-  } else if(type==='acknowledged'){
-    // Acknowledged: เสียงเตือนยังดังแต่เบาลง (ใช้ call pattern)
-    beepIv=setInterval(function(){
-      beep(440,.1);
-      setTimeout(function(){ beep(380,.1); },280);
-    },1200);
-  } else {
-    clearInterval(beepIv);
-  }
+  if(type==='normal'||!audioCtx||!sndOn) return;
+  alarmStart=Date.now(); alarmNext=0;
+  beepIv=setInterval(function(){
+    if(!audioCtx||!sndOn) return;
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    var now=Date.now();
+    if(now<alarmNext) return;
+    if(type==='breakdown'){
+      var fast=(now-alarmStart)>30000;
+      cycleBreakdown(fast); alarmNext=now+(fast?1440:1800);
+    } else if(type==='call'){
+      cycleCall(); alarmNext=now+1600;
+    } else {
+      cycleAck(); alarmNext=now+3000;
+    }
+  },100);
 }
 
 // ── LOG ───────────────────────────────────────
