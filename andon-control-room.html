@@ -368,19 +368,31 @@ window.addEventListener('DOMContentLoaded', function(){
     firebase.initializeApp(CFG);
     var db = firebase.database();
 
-    // ฟัง station01 (Base Coat / Clear Coat)
-    db.ref('andon/station01').on('value', function(snap){
-      setConn(true);
-      var d=snap.val();
-      if(d && d.type){ onStationChange('S1', d); }
-    }, function(e){ setConn(false); log('s','⚡ '+e.message); });
+    var liveOn=false;
+    function attachLive(){
+      if(liveOn) return; liveOn=true;
+      // ฟัง station01 (Base Coat / Clear Coat)
+      db.ref('andon/station01').on('value', function(snap){
+        setConn(true);
+        var d=snap.val();
+        if(d && d.type){ onStationChange('S1', d); }
+      }, function(e){ setConn(false); log('s','⚡ '+e.message); });
 
-    // ฟัง station02 (New Primer)
-    db.ref('andon/station02').on('value', function(snap){
-      setConn(true);
-      var d=snap.val();
-      if(d && d.type){ onStationChange('S2', d); }
-    });
+      // ฟัง station02 (New Primer)
+      db.ref('andon/station02').on('value', function(snap){
+        setConn(true);
+        var d=snap.val();
+        if(d && d.type){ onStationChange('S2', d); }
+      });
+    }
+    // โหลดประวัติวันนี้จาก Firebase ก่อน (กัน log/สถิติหายตอนรีเฟรช) แล้วค่อยฟังสถานะสด
+    var hKey=dayKey(new Date());
+    var hTimer=setTimeout(attachLive,4000);
+    db.ref('andon/history/'+hKey).once('value',function(snap){
+      clearTimeout(hTimer);
+      try{ restoreHistory(snap.val()); }catch(e){ log('s','⚡ โหลดประวัติไม่ได้: '+e.message); }
+      attachLive();
+    },function(e){ clearTimeout(hTimer); log('s','⚡ อ่านประวัติไม่ได้: '+e.message); attachLive(); });
 
     setConn(true);
   } catch(e){
@@ -388,6 +400,58 @@ window.addEventListener('DOMContentLoaded', function(){
     log('s','⚡ Firebase ไม่พร้อม: '+e.message);
   }
 });
+
+
+// ── RESTORE HISTORY (โหลดประวัติของวันนี้กลับมาหลังรีเฟรช) ──
+function dayKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function getClr(k){ try{ return +localStorage.getItem(k)||0; }catch(e){ return 0; } }
+function setClr(k){ try{ localStorage.setItem(k,String(Date.now())); }catch(e){} }
+function restoreHistory(val){
+  var evs=[]; if(val) Object.keys(val).forEach(function(k){ evs.push(val[k]); });
+  evs.sort(function(a,b){ return (a.ts||0)-(b.ts||0); });
+  if(!evs.length) return;
+  var cEv=getClr('andon_clr_ev'), cDt=getClr('andon_clr_dt'), cTm=Math.max(cDt,getClr('andon_clr_tm'));
+  // Event log
+  evs.forEach(function(ev){
+    if(!ev.ts||ev.ts<=cEv) return;
+    var t=TYPES[ev.type]||TYPES.normal, who=ev.lineName||('LINE-'+ev.line);
+    var extra=[ev.cause,ev.detail].filter(Boolean).join(' · ');
+    if(ev.type==='acknowledged'&&ev.ackedBy) extra=(extra?extra+' · ':'')+'โดย '+ev.ackedBy;
+    log(t.col,'['+who+'] '+t.label+' — '+(extra||t.sub),ev.ts);
+  });
+  // ประกอบเหตุการณ์เป็น incident ต่อไลน์
+  var open={1:null,2:null}, done=[];
+  evs.forEach(function(ev){
+    var L=ev.line; if(L!==1&&L!==2) return;
+    if(ev.type==='call'||ev.type==='breakdown'){
+      var o=open[L];
+      if(!o) open[L]={line:L,type:ev.type,startTs:ev.ts,endTs:null,detail:[ev.cause,ev.detail].filter(Boolean).join(' · '),reporter:ev.reporter||'',ackedBy:''};
+      else if(ev.type==='breakdown'&&o.type==='call'){ o.type='breakdown'; var d2=[ev.cause,ev.detail].filter(Boolean).join(' · '); if(d2) o.detail=d2; if(ev.reporter) o.reporter=ev.reporter; }
+    } else if(ev.type==='acknowledged'){
+      if(open[L]&&!open[L].ackedBy) open[L].ackedBy=ev.ackedBy||'';
+    } else if(ev.type==='normal'){
+      if(open[L]){ open[L].endTs=ev.ts; done.push(open[L]); open[L]=null; }
+    }
+  });
+  // Downtime log + สถิติ (เฉพาะที่จบแล้ว — ที่ยังค้างอยู่ระบบสดจะสร้างเอง)
+  var dl=done.filter(function(i){ return i.startTs>cDt; });
+  dl.forEach(function(i,idx){ i.no=idx+1; i.station='LINE-'+i.line; });
+  downtimeLog=dl;
+  stats.alerts=dl.length; stats.resolved=dl.length;
+  stats.breaks=dl.filter(function(i){ return i.type==='breakdown'; }).length;
+  // ตัวจับเวลาสะสม
+  var now=Date.now(), d0=new Date();
+  var ws=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate(),7,0,0).getTime();
+  var we=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate(),16,30,0).getTime();
+  var base=Math.max(ws,cTm), call=0, brk=0;
+  done.forEach(function(i){
+    var a=Math.max(i.startTs,base), b=i.endTs; if(b>a){ if(i.type==='breakdown') brk+=b-a; else call+=b-a; }
+  });
+  var span=Math.max(0,Math.min(now,we)-base);
+  timerAccum={normal:Math.max(0,span-call-brk),call:call,breakdown:brk};
+  renderDowntime(); updateStats();
+  log('s','🕘 โหลดประวัติวันนี้แล้ว · '+evs.length+' เหตุการณ์');
+}
 
 // ── ON STATION CHANGE ────────────────────────
 var tgSeen = {};
@@ -592,6 +656,7 @@ function renderTimer(){
 }
 
 function resetTimers(){
+  setClr('andon_clr_tm');
   timerAccum = {normal:0, call:0, breakdown:0};
   timerStart = Date.now();
   log('s','⏱ Timer reset แล้ว');
@@ -661,6 +726,7 @@ function fitDowntimeHeight(){
 setInterval(function(){ if(openEntry) renderDowntime(); }, 1000);
 
 function clearDowntime(){
+  setClr('andon_clr_dt');
   downtimeLog = [];
   openEntry   = null;
   renderDowntime();
@@ -962,9 +1028,9 @@ setInterval(renderStationCards, 1000);
 
 function renderStationCards2(){}
 
-function log(col,msg){
+function log(col,msg,ts){
   var b=document.getElementById('logBox');
-  var now=new Date().toLocaleTimeString('th-TH',{hour12:false});
+  var now=(ts?new Date(ts):new Date()).toLocaleTimeString('th-TH',{hour12:false});
   var el=document.createElement('div'); el.className='le '+col;
   el.innerHTML='<span class="ts">['+now+']</span><span class="m">'+msg+'</span>';
   b.appendChild(el); b.scrollTop=b.scrollHeight;
@@ -972,6 +1038,7 @@ function log(col,msg){
 }
 
 function clearLog(){
+  setClr('andon_clr_ev');
   document.getElementById('logBox').innerHTML='';
 }
 </script>
