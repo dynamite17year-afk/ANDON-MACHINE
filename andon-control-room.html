@@ -201,6 +201,10 @@ body{background:#030710;color:var(--tx);font-family:'Noto Sans Thai',sans-serif;
 @keyframes sirenGlow{from{opacity:.25}to{opacity:1}}
 @keyframes sirenTxt{from{opacity:.7}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.stile.breakdown .st-ico::before,.stile.breakdown .st-ico::after,.stile.breakdown::after,.stile.breakdown .st-txt{animation:none}}
+/* DOWNTIME LOG: 3 rows visible, scroll for more */
+.dt-wrap{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#2a5a7a #060c18}
+.dt-wrap::-webkit-scrollbar{width:6px}.dt-wrap::-webkit-scrollbar-thumb{background:#2a5a7a;border-radius:3px}.dt-wrap::-webkit-scrollbar-track{background:#060c18}
+.dt-table thead th{position:sticky;top:0;background:#060c18;z-index:1}
 </style>
 </head>
 <body>
@@ -633,7 +637,18 @@ function renderDowntime(){
       '</tr>';
   }).join('');
   tbody.innerHTML = rows;
+  fitDowntimeHeight();
 }
+
+// ให้ตารางแสดง 3 แถว (ที่เหลือเลื่อนเมาส์ดู)
+function fitDowntimeHeight(){
+  var wrap=document.querySelector('.dt-wrap'); if(!wrap) return;
+  var tb=document.getElementById('dtBody'), rows=tb.querySelectorAll('tr');
+  var th=wrap.querySelector('thead'), h=th?th.offsetHeight:0;
+  if(rows.length>3){ for(var i=0;i<3;i++) h+=rows[i].offsetHeight; wrap.style.maxHeight=h+'px'; }
+  else wrap.style.maxHeight='';
+}
+
 
 // อัปเดต duration ทุก 1 วินาที
 setInterval(function(){ if(openEntry) renderDowntime(); }, 1000);

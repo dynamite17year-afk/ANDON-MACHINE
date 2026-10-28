@@ -520,13 +520,14 @@ function render(){
   document.getElementById('kBrk').textContent=M.brk;
   document.getElementById('kBrkD').textContent='เรียกหัวหน้า '+M.calls+' ครั้ง';
   var mm=function(ms){ return ms==null?null:ms/60000; };
-  document.getElementById('kMttr').innerHTML=M.mttr==null?'—':mm(M.mttr).toFixed(1)+'<small>นาที</small>';
+  var mi=function(ms){ if(ms==null) return '—'; var m=Math.round(ms/60000); if(ms>0&&m===0) return '<1'; return m.toLocaleString('en-US'); };
+  document.getElementById('kMttr').innerHTML=M.mttr==null?'—':mi(M.mttr)+'<small>นาที</small>';
   var kMD=document.getElementById('kMttrD');
-  if(yOK&&M.mttr!=null&&Y.mttr!=null){ var d1=mm(Y.mttr)-mm(M.mttr); kMD.className='d '+(d1>=0?'up':'dn'); kMD.textContent=(d1>=0?'▲ ดีขึ้น ':'▼ แย่ลง ')+Math.abs(d1).toFixed(1)+' นาที'; } else { kMD.className='d nt'; kMD.textContent='เวลาซ่อมเฉลี่ยต่อครั้ง'; }
-  document.getElementById('kMtbf').innerHTML=M.mtbf==null?'—':(M.mtbf/3600000).toFixed(1)+'<small>ชม.</small>';
+  if(yOK&&M.mttr!=null&&Y.mttr!=null){ var d1=mm(Y.mttr)-mm(M.mttr); kMD.className='d '+(d1>=0?'up':'dn'); kMD.textContent=(d1>=0?'▲ ดีขึ้น ':'▼ แย่ลง ')+Math.round(Math.abs(d1)).toLocaleString('en-US')+' นาที'; } else { kMD.className='d nt'; kMD.textContent='เวลาซ่อมเฉลี่ยต่อครั้ง'; }
+  document.getElementById('kMtbf').innerHTML=M.mtbf==null?'—':mi(M.mtbf)+'<small>นาที</small>';
   var kBD=document.getElementById('kMtbfD');
-  if(yOK&&M.mtbf!=null&&Y.mtbf!=null){ var d2=(M.mtbf-Y.mtbf)/3600000; kBD.className='d '+(d2>=0?'up':'dn'); kBD.textContent=(d2>=0?'▲ ดีขึ้น ':'▼ แย่ลง ')+Math.abs(d2).toFixed(1)+' ชม.'; } else { kBD.className='d nt'; kBD.textContent=M.brk? 'เวลาเฉลี่ยก่อนเสียครั้งถัดไป':'ยังไม่มีเครื่องเสียวันนี้'; }
-  document.getElementById('kAck').innerHTML=M.ack==null?'—':mm(M.ack).toFixed(1)+'<small>นาที</small>';
+  if(yOK&&M.mtbf!=null&&Y.mtbf!=null){ var d2=(M.mtbf-Y.mtbf)/60000; kBD.className='d '+(d2>=0?'up':'dn'); kBD.textContent=(d2>=0?'▲ ดีขึ้น ':'▼ แย่ลง ')+Math.round(Math.abs(d2)).toLocaleString('en-US')+' นาที'; } else { kBD.className='d nt'; kBD.textContent=M.brk? 'เวลาเฉลี่ยก่อนเสียครั้งถัดไป':'ยังไม่มีเครื่องเสียวันนี้'; }
+  document.getElementById('kAck').innerHTML=M.ack==null?'—':mi(M.ack)+'<small>นาที</small>';
 
   // hourly chart
   var hrs=[],h0=SHIFT_START[0],h1=SHIFT_END[0];
