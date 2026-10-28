@@ -7,7 +7,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Noto+Sans+Thai:wght@400;600;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;800&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 body{
   background:#03060d;font-family:'Noto Sans Thai',sans-serif;color:#b8d8ee;
@@ -124,6 +124,21 @@ a.tile:active{transform:scale(.97)}
 @media(max-width:600px){.montile{margin:6px 0 0;justify-content:center}.grid4{width:min(100%,calc((100dvh - 118px - 52px) * .466))}}
 .bgac{position:absolute;top:14px;right:18px;width:clamp(96px,11.2vw,120px);height:auto;filter:drop-shadow(0 0 8px rgba(120,170,255,.45));pointer-events:none}
 @media(max-width:600px){.bgac{top:8px;right:10px;width:58px}}
+/* UNIFIED FONT */
+*,*::before,*::after{font-family:'Noto Sans Thai',sans-serif!important}
+.logo,.hdr-title,.lock-t,.ls-status,.sov,.v,.lamp b,.ring div{font-weight:800!important}
+.tl-st{font-size:4.1cqw!important;letter-spacing:.5px!important}
+.st-txt{font-size:3.4cqw!important;letter-spacing:.02em!important}
+.sov{font-size:4.4cqw!important}
+.lc .stt b{font-size:1.4rem!important;letter-spacing:1px!important}
+.ap-t{font-size:1.25rem!important;letter-spacing:2px!important}
+.hdr-title{font-size:1.5rem!important;letter-spacing:4px!important}
+.logo{font-size:2.6rem!important;letter-spacing:8px!important}
+.lamp b{font-size:1rem!important;letter-spacing:1px!important}
+.ring div{font-size:.95rem!important}
+.kpi .v{font-size:2rem!important}
+.tnow .t{font-size:1rem!important}
+.monbtn{letter-spacing:3px!important;font-size:.95rem!important}
 </style>
 </head>
 <body>
