@@ -246,7 +246,7 @@ var TYPES = {
   normal:       {icon:'✅',label:'NORMAL',          cls:'',             col:'g'},
   call:         {icon:'📞',label:'เรียกหัวหน้า',    cls:'call',         col:'y'},
   breakdown:    {icon:'⚠️',label:'เครื่องเสีย',     cls:'breakdown',    col:'r'},
-  acknowledged: {icon:'🔵',label:'รับทราบแล้ว',    cls:'acknowledged', col:'b'}
+  acknowledged: {icon:'🔵',label:'ผู้ซ่อมรับทราบแล้ว',    cls:'acknowledged', col:'b'}
 };
 
 var CF = {
@@ -446,7 +446,7 @@ function render(){
 
   // แสดง badge รับทราบ
   var badge = document.getElementById('ackBadge');
-  badge.style.display = (curType==='acknowledged') ? 'block' : 'none';
+  badge.style.display = 'none'; // ข้อความ "ผู้ซ่อมรับทราบแล้ว" แสดงที่ข้อความหลักแล้ว
 
   var s=Math.floor((Date.now()-stateTs)/1000);
   document.getElementById('stime').textContent =
